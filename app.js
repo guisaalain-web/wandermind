@@ -51,52 +51,105 @@
     class ContentGenerator {
         constructor(cityMgr) {
             this.cityMgr = cityMgr;
+            this.places = [];
+            this.lastCityName = '';
         }
 
-        // Generate places for any city based on universal categories
-        generatePlaces() {
+        // Fetch real places from Nominatim
+        async fetchRealPlaces() {
+            const city = this.cityMgr.getCity();
+            if (this.lastCityName === city.name && this.places.length > 0) return this.places;
+
+            try {
+                // Search for multiple categories to get a good mix
+                const queries = ['tourism', 'attraction', 'landmark', 'museum', 'park'];
+                const results = await Promise.all(queries.map(q =>
+                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}+in+${encodeURIComponent(city.name)}&limit=5&addressdetails=1&extratags=1`,
+                        { headers: { 'Accept-Language': 'es' } }).then(r => r.json())
+                ));
+
+                const uniquePlaces = new Map();
+                results.flat().forEach(item => {
+                    if (!uniquePlaces.has(item.place_id)) {
+                        uniquePlaces.set(item.place_id, item);
+                    }
+                });
+
+                this.places = Array.from(uniquePlaces.values())
+                    .map((item, i) => this.mapNominatimToPlace(item, i))
+                    .filter(p => p.name && p.lat && p.lng)
+                    .slice(0, 15); // Limit to 15 best places
+
+                this.lastCityName = city.name;
+                return this.places;
+            } catch (error) {
+                console.error('Error fetching places:', error);
+                return this.generateFallbackPlaces(); // Fallback if API fails
+            }
+        }
+
+        mapNominatimToPlace(item, index) {
+            const type = item.type || item.class;
+            let category = 'culture';
+            let tags = ['culture'];
+
+            if (['park', 'garden', 'nature_reserve', 'forest'].includes(type)) { category = 'nature'; tags = ['nature', 'relaxed']; }
+            else if (['museum', 'arts_centre', 'gallery', 'artwork'].includes(type)) { category = 'art'; tags = ['art', 'culture']; }
+            else if (['restaurant', 'cafe', 'bar', 'food_court'].includes(type)) { category = 'food'; tags = ['food', 'local']; }
+            else if (['mall', 'marketplace', 'shop'].includes(type)) { category = 'shopping'; tags = ['shopping']; }
+            else if (['viewpoint', 'attraction', 'monument'].includes(type)) { category = 'adventure'; tags = ['adventure', 'history']; }
+
+            return {
+                id: index + 1,
+                name: item.name || item.display_name.split(',')[0],
+                category: category,
+                tags: tags,
+                description: item.extratags?.description || item.display_name.split(',').slice(1, 3).join(','),
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lon),
+                duration: 90, // Default duration
+                price: Math.random() > 0.7 ? '€€' : '€',
+                rating: (4 + Math.random()).toFixed(1),
+                hours: '09:00-20:00'
+            };
+        }
+
+        // Fallback if API fails
+        generateFallbackPlaces() {
             const city = this.cityMgr.getCity();
             const lat = city.lat, lng = city.lng;
-
             const placeTemplates = [
-                { name: `Museo Central de ${city.name}`, category: 'culture', tags: ['culture', 'art', 'history'], description: `El principal museo de ${city.name} con colecciones históricas y artísticas.`, duration: 180, price: '€€', rating: 4.6 },
-                { name: `Mercado Local de ${city.name}`, category: 'food', tags: ['food', 'local', 'shopping'], description: `Mercado tradicional con productos frescos y gastronomía local.`, duration: 90, price: '€', rating: 4.5 },
-                { name: `Parque Principal`, category: 'nature', tags: ['nature', 'relaxed', 'free'], description: `Espacio verde en el corazón de ${city.name} ideal para pasear.`, duration: 120, price: '€', rating: 4.4 },
-                { name: `Centro Histórico`, category: 'culture', tags: ['culture', 'history', 'local'], description: `El casco antiguo de ${city.name} con arquitectura tradicional.`, duration: 150, price: '€', rating: 4.7 },
-                { name: `Galería de Arte Contemporáneo`, category: 'art', tags: ['art', 'culture', 'modern'], description: `Exposiciones de artistas locales e internacionales.`, duration: 120, price: '€€', rating: 4.3 },
-                { name: `Barrio Gastronómico`, category: 'food', tags: ['food', 'nightlife', 'local'], description: `Zona de restaurantes y bares con la mejor cocina local.`, duration: 120, price: '€€', rating: 4.5 },
-                { name: `Mirador Panorámico`, category: 'nature', tags: ['nature', 'adventure'], description: `Las mejores vistas de ${city.name} y sus alrededores.`, duration: 60, price: '€', rating: 4.8 },
-                { name: `Zona de Tiendas`, category: 'shopping', tags: ['shopping', 'local'], description: `Área comercial con tiendas locales y boutiques.`, duration: 90, price: '€€', rating: 4.2 }
+                { name: `Museo Central de ${city.name}`, category: 'culture', tags: ['culture', 'art', 'history'], description: `El principal museo de ${city.name}.`, duration: 180, price: '€€', rating: 4.6 },
+                { name: `Mercado Local`, category: 'food', tags: ['food', 'local'], description: `Mercado tradicional con productos frescos.`, duration: 90, price: '€', rating: 4.5 },
+                { name: `Parque de la Ciudad`, category: 'nature', tags: ['nature', 'relaxed'], description: `Espacio verde ideal para pasear.`, duration: 120, price: '€', rating: 4.4 },
+                { name: `Centro Histórico`, category: 'culture', tags: ['culture', 'history'], description: `El casco antiguo de ${city.name}.`, duration: 150, price: '€', rating: 4.7 },
+                { name: `Mirador Panorámico`, category: 'nature', tags: ['nature', 'adventure'], description: `Vistas increíbles de la ciudad.`, duration: 60, price: '€', rating: 4.8 }
             ];
-
             return placeTemplates.map((p, i) => ({
-                ...p,
-                id: i + 1,
-                lat: lat + (Math.random() - 0.5) * 0.03,
-                lng: lng + (Math.random() - 0.5) * 0.03,
-                hours: '09:00-20:00'
+                ...p, id: i + 1, lat: lat + (Math.random() - 0.5) * 0.03, lng: lng + (Math.random() - 0.5) * 0.03, hours: '09:00-20:00'
             }));
         }
 
-        // Generate events for any city
+        // Generate events using real place names if available
         generateEvents() {
             const city = this.cityMgr.getCity();
             const today = new Date();
+            const locations = this.places.length > 0 ? this.places.map(p => p.name) : ['Plaza Principal', 'Centro Cultural', 'Parque Central'];
 
             const eventTemplates = [
-                { title: `Festival de Jazz en ${city.name}`, category: 'music', description: 'Conciertos íntimos con artistas locales e internacionales.', hidden: true, location: 'Centro Cultural' },
-                { title: 'Mercado Nocturno Artesanal', category: 'market', description: 'Artesanía local, comida callejera y música en vivo.', hidden: false, location: 'Plaza Principal' },
-                { title: 'Tour Gastronómico Secreto', category: 'food', description: 'Descubre los mejores restaurantes escondidos de la ciudad.', hidden: true, location: 'Punto de encuentro variable' },
-                { title: 'Exposición de Arte Urbano', category: 'art', description: 'Murales y grafitis de artistas locales.', hidden: true, location: 'Barrio Artístico' },
-                { title: 'Concierto al Atardecer', category: 'music', description: 'Música en vivo con vistas panorámicas.', hidden: false, location: 'Mirador Principal' },
-                { title: 'Feria de Antigüedades', category: 'market', description: 'Objetos vintage y coleccionables únicos.', hidden: false, location: 'Mercado Central' }
+                { title: `Festival de Jazz`, category: 'music', description: 'Conciertos íntimos con artistas locales.', hidden: true },
+                { title: 'Mercado Nocturno', category: 'market', description: 'Artesanía y comida callejera.', hidden: false },
+                { title: 'Tour Gastronómico', category: 'food', description: 'Ruta de tapas y sabores locales.', hidden: true },
+                { title: 'Arte Urbano en Vivo', category: 'art', description: 'Artistas pintando murales.', hidden: true },
+                { title: 'Música al Atardecer', category: 'music', description: 'Sesión acústica con vistas.', hidden: false }
             ];
 
             return eventTemplates.map((e, i) => ({
                 ...e,
                 id: i + 1,
+                location: locations[i % locations.length],
                 date: new Date(today.getTime() + (i + 1) * 86400000).toISOString().split('T')[0],
-                time: ['18:00', '20:00', '19:00', '17:00', '21:00', '10:00'][i] || '19:00',
+                time: ['18:00', '20:00', '19:00', '17:00', '21:00'][i] || '19:00',
                 coords: { lat: city.lat + (Math.random() - 0.5) * 0.02, lng: city.lng + (Math.random() - 0.5) * 0.02 }
             }));
         }
@@ -116,7 +169,7 @@
             };
         }
 
-        getPlaces() { return this.generatePlaces(); }
+        getPlaces() { return this.places; }
         getEvents() { return this.generateEvents(); }
         getTransport() { return this.generateTransport(); }
     }
@@ -252,16 +305,35 @@
             this.generatedRoutes = [];
         }
 
-        init() {
+        async init() {
             this.setupCitySearch();
             this.setupEventListeners();
             this.renderWizardSteps();
             this.updatePreferencesDisplay();
             this.updateCurrentCityDisplay();
+
+            // Initial fetch
+            await this.loadCityData();
+
             this.renderEvents();
             this.renderTransport();
-            setTimeout(() => { this.mapCtrl = new MapController(this.cityMgr, this.contentGen); this.mapCtrl.init(); }, 500);
+            this.mapCtrl = new MapController(this.cityMgr, this.contentGen);
+            this.mapCtrl.init();
+
             if (this.prefs.isConfigured()) this.generateAndDisplayRoutes();
+        }
+
+        async loadCityData() {
+            const city = this.cityMgr.getCity();
+            // Show loading state in toast
+            const toast = document.createElement('div');
+            toast.className = 'toast info';
+            toast.textContent = `Cargando lugares de ${city.name}...`;
+            document.getElementById('toast-container').appendChild(toast);
+
+            await this.contentGen.fetchRealPlaces();
+
+            toast.remove();
         }
 
         setupCitySearch() {
@@ -314,9 +386,12 @@
             });
         }
 
-        selectCity(city) {
+        async selectCity(city) {
             this.cityMgr.saveCity(city);
             this.updateCurrentCityDisplay();
+
+            await this.loadCityData();
+
             if (this.mapCtrl) this.mapCtrl.updateCity();
             this.renderEvents();
             this.renderTransport();
