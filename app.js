@@ -5,7 +5,7 @@
     // City Manager with Nominatim API for any city worldwide
     class CityManager {
         constructor() {
-            this.currentCity = this.loadSavedCity() || { name: 'Madrid', country: 'España', lat: 40.4168, lng: -3.7038 };
+            this.currentCity = this.loadSavedCity() || { name: 'Madrid', country: 'España', lat: 40.4168, lng: -3.7038, bbox: [40.31, 40.56, -3.83, -3.52] };
             this.searchTimeout = null;
         }
 
@@ -37,6 +37,7 @@
                         country: item.address?.country || '',
                         lat: parseFloat(item.lat),
                         lng: parseFloat(item.lon),
+                        bbox: item.boundingbox ? item.boundingbox.map(parseFloat) : null,
                         displayName: item.display_name
                     }))
                     .filter(c => c.name);
@@ -52,6 +53,7 @@
         constructor(cityMgr) {
             this.cityMgr = cityMgr;
             this.places = [];
+            this.transport = { metro: [], bus: [] };
             this.lastCityName = '';
         }
 
@@ -86,6 +88,65 @@
                 console.error('Error fetching places:', error);
                 return this.generateFallbackPlaces(); // Fallback if API fails
             }
+        }
+
+        // Fetch real transport lines from Overpass API
+        async fetchRealTransport() {
+            const city = this.cityMgr.getCity();
+            if (!city.bbox) return this.generateFallbackTransport();
+
+            try {
+                // Query for subway (metro) and tram lines
+                // bbox is [minLat, maxLat, minLon, maxLon]
+                const [minLat, maxLat, minLon, maxLon] = city.bbox;
+                const query = `
+                    [out:json][timeout:25];
+                    (
+                      relation["route"="subway"](${minLat},${minLon},${maxLat},${maxLon});
+                      relation["route"="tram"](${minLat},${minLon},${maxLat},${maxLon});
+                      relation["route"="light_rail"](${minLat},${minLon},${maxLat},${maxLon});
+                    );
+                    out geom;
+                `;
+
+                const response = await fetch('https://overpass-api.de/api/interpreter', {
+                    method: 'POST',
+                    body: query
+                });
+                const data = await response.json();
+
+                if (!data.elements || data.elements.length === 0) return this.generateFallbackTransport();
+
+                const lines = data.elements.map((el, i) => ({
+                    id: el.tags.ref || el.tags.name || `L${i + 1}`,
+                    name: el.tags.name || `Línea ${el.tags.ref}`,
+                    color: el.tags.colour || el.tags.color || this.getLineColor(i),
+                    route: el.tags.from && el.tags.to ? `${el.tags.from} - ${el.tags.to}` : 'Recorrido urbano',
+                    frequency: 5 + Math.floor(Math.random() * 10),
+                    type: el.tags.route,
+                    geometry: el.members.filter(m => m.type === 'way' && m.geometry).map(m => m.geometry.map(p => [p.lat, p.lon]))
+                })).slice(0, 10); // Limit to 10 lines to avoid clutter
+
+                this.transport = {
+                    metro: lines.filter(l => l.type === 'subway' || l.type === 'light_rail'),
+                    bus: lines.filter(l => l.type === 'tram') // Group trams with "bus/surface" for UI simplicity or keep separate
+                };
+
+                // If no metro found, try to fetch some bus routes (usually too many, so we limit strict)
+                if (this.transport.metro.length === 0 && this.transport.bus.length === 0) {
+                    return this.generateFallbackTransport();
+                }
+
+                return this.transport;
+            } catch (error) {
+                console.error('Error fetching transport:', error);
+                return this.generateFallbackTransport();
+            }
+        }
+
+        getLineColor(index) {
+            const colors = ['#e53935', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa', '#00acc1', '#fdd835', '#d81b60'];
+            return colors[index % colors.length];
         }
 
         mapNominatimToPlace(item, index) {
@@ -155,7 +216,7 @@
         }
 
         // Generate transport for any city
-        generateTransport() {
+        generateFallbackTransport() {
             const city = this.cityMgr.getCity();
             return {
                 metro: [
@@ -171,7 +232,7 @@
 
         getPlaces() { return this.places; }
         getEvents() { return this.generateEvents(); }
-        getTransport() { return this.generateTransport(); }
+        getTransport() { return this.transport; }
     }
 
     // User Preferences Manager
@@ -243,6 +304,7 @@
             this.contentGen = contentGen;
             this.map = null;
             this.markers = [];
+            this.transportLayers = [];
             this.routeLine = null;
         }
         init() {
@@ -257,6 +319,7 @@
             const city = this.cityMgr.getCity();
             this.map.setView([city.lat, city.lng], 13);
             this.clearMarkers();
+            this.clearTransport();
             this.addPlaceMarkers();
         }
         clearMarkers() {
@@ -264,12 +327,29 @@
             this.markers = [];
             if (this.routeLine) { this.map.removeLayer(this.routeLine); this.routeLine = null; }
         }
+        clearTransport() {
+            this.transportLayers.forEach(l => this.map.removeLayer(l));
+            this.transportLayers = [];
+        }
         addPlaceMarkers() {
             const places = this.contentGen.getPlaces();
             places.forEach(place => {
                 const icon = L.divIcon({ className: 'custom-marker', html: `<div class="marker-dot" data-category="${place.category}"></div>`, iconSize: [20, 20] });
                 const marker = L.marker([place.lat, place.lng], { icon }).addTo(this.map).on('click', () => this.showPlaceDetails(place));
                 this.markers.push({ marker, place });
+            });
+        }
+        drawTransportLines(transport) {
+            this.clearTransport();
+            const allLines = [...(transport.metro || []), ...(transport.bus || [])];
+            allLines.forEach(line => {
+                if (line.geometry && line.geometry.length > 0) {
+                    line.geometry.forEach(segment => {
+                        const polyline = L.polyline(segment, { color: line.color, weight: 4, opacity: 0.7 }).addTo(this.map);
+                        polyline.bindPopup(`<b>${line.name}</b><br>${line.route}`);
+                        this.transportLayers.push(polyline);
+                    });
+                }
             });
         }
         showPlaceDetails(place) {
@@ -316,9 +396,11 @@
             await this.loadCityData();
 
             this.renderEvents();
-            this.renderTransport();
             this.mapCtrl = new MapController(this.cityMgr, this.contentGen);
             this.mapCtrl.init();
+
+            // Render transport after map is ready
+            this.renderTransport();
 
             if (this.prefs.isConfigured()) this.generateAndDisplayRoutes();
         }
@@ -328,10 +410,13 @@
             // Show loading state in toast
             const toast = document.createElement('div');
             toast.className = 'toast info';
-            toast.textContent = `Cargando lugares de ${city.name}...`;
+            toast.textContent = `Cargando datos de ${city.name}...`;
             document.getElementById('toast-container').appendChild(toast);
 
-            await this.contentGen.fetchRealPlaces();
+            await Promise.all([
+                this.contentGen.fetchRealPlaces(),
+                this.contentGen.fetchRealTransport()
+            ]);
 
             toast.remove();
         }
@@ -609,6 +694,9 @@
                 this.showSchedule(parseInt(el.dataset.frequency));
             }));
             document.getElementById('schedule-list').innerHTML = '<p class="schedule-empty">Selecciona una línea</p>';
+
+            // Draw lines on map
+            if (this.mapCtrl) this.mapCtrl.drawTransportLines(transport);
         }
 
         showSchedule(frequency) {
