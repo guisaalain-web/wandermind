@@ -66,7 +66,6 @@
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"
         data-ad-client="ca-pub-1283946830912151"></script>
     <meta name="theme-color" content="#0a0a0f">
-    <link rel="stylesheet" href="skyscanner-style.css">
 </head>
 
 <body>
@@ -97,86 +96,29 @@
                 <div class="floating-orb orb-3"></div>
             </div>
             <div class="hero-content">
-                <h1 class="hero-title-new">Descubre tu próxima aventura</h1>
-                <p class="hero-subtitle-new">Rutas personalizadas con IA en cualquier ciudad del mundo</p>
-
-                <!-- Skyscanner-style Search Panel -->
-                <div class="search-panel">
-                    <div class="search-tabs">
-                        <button class="search-tab active" data-tab="routes">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                                <circle cx="12" cy="10" r="3"></circle>
-                            </svg>
-                            Rutas
-                        </button>
-                        <button class="search-tab" data-tab="events">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="16" y1="2" x2="16" y2="6"></line>
-                                <line x1="8" y1="2" x2="8" y2="6"></line>
-                                <line x1="3" y1="10" x2="21" y2="10"></line>
-                            </svg>
-                            Eventos
-                        </button>
-                        <button class="search-tab" data-tab="transport">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-                                <path d="M9 9h6v6H9z"></path>
-                            </svg>
-                            Transporte
-                        </button>
-                    </div>
-
-                    <div class="search-box">
-                        <div class="search-input-wrapper">
-                            <svg class="search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <path d="m21 21-4.35-4.35"></path>
-                            </svg>
-                            <input type="text" id="city-search" class="search-input-main"
-                                placeholder="¿A dónde quieres ir?" autocomplete="off">
-                        </div>
-                        <button class="search-btn">
-                            <span>Buscar</span>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                <polyline points="12 5 19 12 12 19"></polyline>
-                            </svg>
-                        </button>
+                <div class="city-search-hero">
+                    <label for="city-search" class="city-label">🌍 Busca tu destino:</label>
+                    <div class="city-search-container" id="city-search-container">
+                        <input type="text" id="city-search" class="city-search-input"
+                            placeholder="Escribe cualquier ciudad del mundo..." autocomplete="off">
+                        <div class="city-search-results" id="city-search-results"></div>
                     </div>
                 </div>
-
-                <!-- Current City Display -->
-                <div class="current-city-badge">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                        <circle cx="12" cy="10" r="3"></circle>
-                    </svg>
-                    <span>Madrid, España</span>
+                <div class="current-city-display" id="current-city-display">
+                    <span class="exploring-label">Explorando:</span>
+                    <span class="current-city-name" id="current-city-name">Madrid, España</span>
                 </div>
-
-                <!-- Quick Stats -->
-                <div class="hero-stats-new">
-                    <div class="stat-item">
-                        <span class="stat-number">∞</span>
-                        <span class="stat-label">Ciudades</span>
-                    </div>
-                    <div class="stat-divider"></div>
-                    <div class="stat-item">
-                        <span class="stat-number">100K+</span>
-                        <span class="stat-label">Lugares</span>
-                    </div>
-                    <div class="stat-divider"></div>
-                    <div class="stat-item">
-                        <span class="stat-number">24/7</span>
-                        <span class="stat-label">Eventos</span>
-                    </div>
+                <h1 class="hero-title"><span class="gradient-text">Descubre cualquier ciudad</span><br>del mundo</h1>
+                <p class="hero-subtitle">Busca <strong>cualquier ciudad</strong> y crea rutas únicas personalizadas con
+                    eventos locales y transporte.</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary" id="start-wizard"><span>Comenzar Aventura</span></button>
+                    <button class="btn btn-secondary" id="explore-routes"><span>Explorar Rutas</span></button>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat"><span class="stat-number">∞</span><span class="stat-label">Ciudades</span></div>
+                    <div class="stat"><span class="stat-number">6+</span><span class="stat-label">Lugares</span></div>
+                    <div class="stat"><span class="stat-number">4+</span><span class="stat-label">Eventos</span></div>
                 </div>
             </div>
         </section>
@@ -233,6 +175,7 @@
                     </div>
                 </div>
             </div>
+        </div>
 
         <section id="preferences" class="section preferences-section">
             <div class="container">
@@ -364,3 +307,5 @@
     <script src="data/transport.js"></script>
     <script src="app.js"></script>
 </body>
+
+</html>

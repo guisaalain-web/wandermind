@@ -317,14 +317,26 @@
             this.routeLine = null;
         }
         init() {
+            const mapElement = document.getElementById('map');
+            if (!mapElement) {
+                console.warn('Map element not found');
+                return;
+            }
             const city = this.cityMgr.getCity();
             this.map = L.map('map').setView([city.lat, city.lng], 13);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '©OpenStreetMap, ©CartoDB', maxZoom: 19
             }).addTo(this.map);
-            this.addPlaceMarkers();
+            // Wait a bit for tiles to load before adding markers
+            setTimeout(() => {
+                this.addPlaceMarkers();
+            }, 300);
         }
         updateCity() {
+            if (!this.map) {
+                this.init();
+                return;
+            }
             const city = this.cityMgr.getCity();
             this.map.setView([city.lat, city.lng], 13);
             this.clearMarkers();
@@ -395,23 +407,36 @@
         }
 
         async init() {
-            this.setupCitySearch();
-            this.setupEventListeners();
-            this.renderWizardSteps();
-            this.updatePreferencesDisplay();
-            this.updateCurrentCityDisplay();
+            try {
+                console.log('Initializing WanderMind app...');
+                this.setupCitySearch();
+                this.setupEventListeners();
+                this.renderWizardSteps();
+                this.updatePreferencesDisplay();
+                this.updateCurrentCityDisplay();
 
-            // Initial fetch
-            await this.loadCityData();
+                // Initial fetch
+                await this.loadCityData();
 
-            this.renderEvents();
-            this.mapCtrl = new MapController(this.cityMgr, this.contentGen);
-            this.mapCtrl.init();
+                this.renderEvents();
+                // Initialize map after a small delay to ensure DOM is ready
+                setTimeout(() => {
+                    const mapElement = document.getElementById('map');
+                    if (mapElement) {
+                        this.mapCtrl = new MapController(this.cityMgr, this.contentGen);
+                        this.mapCtrl.init();
+                    }
+                }, 500);
 
-            // Render transport after map is ready
-            this.renderTransport();
+                // Render transport after map is ready
+                this.renderTransport();
 
-            if (this.prefs.isConfigured()) this.generateAndDisplayRoutes();
+                if (this.prefs.isConfigured()) this.generateAndDisplayRoutes();
+                console.log('WanderMind app initialized successfully');
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                this.showToast('Error al cargar la aplicación. Por favor, recarga la página.', 'error');
+            }
         }
 
         async loadCityData() {
@@ -433,6 +458,41 @@
         setupCitySearch() {
             const input = document.getElementById('city-search');
             const results = document.getElementById('city-search-results');
+            const searchBtn = document.getElementById('search-btn');
+
+            const performSearch = async (query) => {
+                if (!query || query.trim().length < 2) {
+                    results.classList.remove('active');
+                    return;
+                }
+
+                results.innerHTML = '<div class="city-search-loading">🔍 Buscando...</div>';
+                results.classList.add('active');
+
+                const cities = await this.cityMgr.searchCities(query);
+                if (cities.length === 0) {
+                    results.innerHTML = '<div class="city-search-loading">No se encontraron ciudades</div>';
+                } else {
+                    results.innerHTML = cities.map(city => `
+                        <div class="city-result" data-city='${JSON.stringify(city)}'>
+                            <span class="city-result-icon">📍</span>
+                            <div class="city-result-info">
+                                <div class="city-result-name">${city.name}</div>
+                                <div class="city-result-country">${city.country}</div>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    results.querySelectorAll('.city-result').forEach(el => {
+                        el.addEventListener('click', () => {
+                            const city = JSON.parse(el.dataset.city);
+                            this.selectCity(city);
+                            input.value = '';
+                            results.classList.remove('active');
+                        });
+                    });
+                }
+            };
 
             input.addEventListener('input', async (e) => {
                 const query = e.target.value.trim();
@@ -443,34 +503,24 @@
                     return;
                 }
 
-                results.innerHTML = '<div class="city-search-loading">🔍 Buscando...</div>';
-                results.classList.add('active');
+                this.searchTimeout = setTimeout(() => performSearch(query), 500);
+            });
 
-                this.searchTimeout = setTimeout(async () => {
-                    const cities = await this.cityMgr.searchCities(query);
-                    if (cities.length === 0) {
-                        results.innerHTML = '<div class="city-search-loading">No se encontraron ciudades</div>';
-                    } else {
-                        results.innerHTML = cities.map(city => `
-                            <div class="city-result" data-city='${JSON.stringify(city)}'>
-                                <span class="city-result-icon">📍</span>
-                                <div class="city-result-info">
-                                    <div class="city-result-name">${city.name}</div>
-                                    <div class="city-result-country">${city.country}</div>
-                                </div>
-                            </div>
-                        `).join('');
+            if (searchBtn) {
+                searchBtn.addEventListener('click', () => {
+                    const query = input.value.trim();
+                    clearTimeout(this.searchTimeout);
+                    performSearch(query);
+                });
+            }
 
-                        results.querySelectorAll('.city-result').forEach(el => {
-                            el.addEventListener('click', () => {
-                                const city = JSON.parse(el.dataset.city);
-                                this.selectCity(city);
-                                input.value = '';
-                                results.classList.remove('active');
-                            });
-                        });
-                    }
-                }, 500);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const query = input.value.trim();
+                    clearTimeout(this.searchTimeout);
+                    performSearch(query);
+                }
             });
 
             document.addEventListener('click', (e) => {
@@ -496,7 +546,10 @@
 
         updateCurrentCityDisplay() {
             const city = this.cityMgr.getCity();
-            document.getElementById('current-city-name').textContent = `${city.name}, ${city.country}`;
+            const cityNameEl = document.getElementById('current-city-name');
+            if (cityNameEl) {
+                cityNameEl.textContent = `${city.name}, ${city.country}`;
+            }
         }
 
         setupEventListeners() {
@@ -505,7 +558,18 @@
             document.getElementById('close-wizard').addEventListener('click', () => this.closeWizard());
             document.getElementById('wizard-prev').addEventListener('click', () => this.wizardPrev());
             document.getElementById('wizard-next').addEventListener('click', () => this.wizardNext());
-            document.getElementById('explore-routes').addEventListener('click', () => document.getElementById('routes').scrollIntoView({ behavior: 'smooth' }));
+            // Close modal when clicking overlay
+            const modal = document.getElementById('preferences-modal');
+            if (modal) {
+                const overlay = modal.querySelector('.modal-overlay');
+                if (overlay) {
+                    overlay.addEventListener('click', () => this.closeWizard());
+                }
+            }
+            const exploreRoutesBtn = document.getElementById('explore-routes');
+            if (exploreRoutesBtn) {
+                exploreRoutesBtn.addEventListener('click', () => document.getElementById('routes').scrollIntoView({ behavior: 'smooth' }));
+            }
             document.getElementById('generate-route').addEventListener('click', () => {
                 if (!this.prefs.isConfigured()) { this.openWizard(); return; }
                 this.generateAndDisplayRoutes();
@@ -521,6 +585,27 @@
                 e.target.classList.add('active');
                 this.filterEvents(e.target.dataset.category);
             }));
+            // Search tabs functionality
+            document.querySelectorAll('.search-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
+                    e.target.classList.add('active');
+                    const targetSection = e.target.dataset.tab;
+                    if (targetSection) {
+                        const sectionMap = {
+                            'routes': 'routes',
+                            'events': 'events',
+                            'transport': 'transport'
+                        };
+                        const sectionId = sectionMap[targetSection];
+                        if (sectionId) {
+                            setTimeout(() => {
+                                document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth' });
+                            }, 100);
+                        }
+                    }
+                });
+            });
         }
 
         renderWizardSteps() {
@@ -671,8 +756,10 @@
         filterRoutes(filter) { document.querySelectorAll('.route-card').forEach(card => card.style.display = filter === 'all' || card.dataset.time === filter ? 'block' : 'none'); }
 
         renderEvents() {
+            const eventsGrid = document.getElementById('events-grid');
+            if (!eventsGrid) return;
             const events = this.contentGen.getEvents();
-            document.getElementById('events-grid').innerHTML = events.map(event => `
+            eventsGrid.innerHTML = events.map(event => `
                 <div class="event-card" data-category="${event.category}">
                     ${event.hidden ? '<span class="event-badge">🔮 Secreto</span>' : ''}
                     <div class="event-date">📅 ${new Date(event.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} · ${event.time}</div>
@@ -688,6 +775,8 @@
         renderTransport() {
             const transport = this.contentGen.getTransport();
             const linesContainer = document.getElementById('transport-lines');
+            if (!linesContainer) return;
+            
             const allLines = [...(transport.metro || []).map(l => ({ ...l, type: 'metro' })), ...(transport.bus || []).map(l => ({ ...l, type: 'bus' }))];
 
             linesContainer.innerHTML = allLines.map(line => `
@@ -702,10 +791,16 @@
                 el.classList.add('active');
                 this.showSchedule(parseInt(el.dataset.frequency));
             }));
-            document.getElementById('schedule-list').innerHTML = '<p class="schedule-empty">Selecciona una línea</p>';
+            
+            const scheduleList = document.getElementById('schedule-list');
+            if (scheduleList) {
+                scheduleList.innerHTML = '<p class="schedule-empty">Selecciona una línea</p>';
+            }
 
             // Draw lines on map
-            if (this.mapCtrl) this.mapCtrl.drawTransportLines(transport);
+            if (this.mapCtrl && this.mapCtrl.map) {
+                this.mapCtrl.drawTransportLines(transport);
+            }
         }
 
         showSchedule(frequency) {
