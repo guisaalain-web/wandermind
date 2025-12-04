@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO Primary Meta Tags -->
+    <title>WanderMind | Guía Turística Inteligente - Rutas Personalizadas en Cualquier Ciudad</title>
+    <meta name="title" content="WanderMind | Guía Turística Inteligente - Rutas Personalizadas en Cualquier Ciudad">
+    <meta name="description"
+        content="Descubre rutas turísticas personalizadas en cualquier ciudad del mundo. WanderMind aprende de tus gustos y crea itinerarios únicos con eventos locales ocultos y transporte en tiempo real. ¡Planifica tu próxima aventura!">
+    <meta name="keywords"
+        content="guía turística, rutas personalizadas, viajes, turismo, planificador de viajes, eventos locales, transporte, ciudades del mundo, itinerarios, aventuras">
+    <meta name="author" content="WanderMind">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="Spanish">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://guisaalain.github.io/wandermind/">
+    <meta property="og:title" content="WanderMind | Descubre el Mundo a Tu Manera">
+    <meta property="og:description"
+        content="App turística inteligente que aprende de tus gustos y crea rutas únicas en cualquier ciudad del mundo.">
+    <meta property="og:image" content="https://guisaalain.github.io/wandermind/og-image.jpg">
+    <meta property="og:locale" content="es_ES">
+    <meta property="og:site_name" content="WanderMind">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://guisaalain.github.io/wandermind/">
+    <meta property="twitter:title" content="WanderMind | Rutas Turísticas Personalizadas">
+    <meta property="twitter:description"
+        content="Descubre rutas personalizadas en cualquier ciudad. Eventos ocultos y transporte en tiempo real.">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://guisaalain.github.io/wandermind/">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+
+    <!-- Google AdSense - REEMPLAZA ca-pub-XXXXXXX con tu ID cuando te aprueben -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+        crossorigin="anonymous"></script>
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "WanderMind",
+        "description": "Guía turística inteligente con rutas personalizadas para cualquier ciudad del mundo",
+        "url": "https://guisaalain.github.io/wandermind",
+        "applicationCategory": "TravelApplication",
+        "operatingSystem": "Web",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+    }
+    </script>
+
+    <!-- Fonts & Styles -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+    <meta name="theme-color" content="#0a0a0f">
+</head>
+
+<body>
+    <a href="#main-content" class="skip-link">Saltar al contenido</a>
+
+    <header>
+        <nav class="navbar" id="navbar">
+            <div class="nav-container">
+                <a href="#" class="nav-logo"><span class="logo-icon">🧭</span><span
+                        class="logo-text">WanderMind</span></a>
+                <ul class="nav-menu" id="nav-menu">
+                    <li><a href="#home" class="nav-link active">Inicio</a></li>
+                    <li><a href="#preferences" class="nav-link">Preferencias</a></li>
+                    <li><a href="#routes" class="nav-link">Rutas</a></li>
+                    <li><a href="#events" class="nav-link">Eventos</a></li>
+                    <li><a href="#transport" class="nav-link">Transporte</a></li>
+                </ul>
+                <button class="nav-toggle" id="nav-toggle"><span></span><span></span><span></span></button>
+            </div>
+        </nav>
+    </header>
+
+    <main id="main-content">
+        <section id="home" class="hero">
+            <div class="hero-bg">
+                <div class="floating-orb orb-1"></div>
+                <div class="floating-orb orb-2"></div>
+                <div class="floating-orb orb-3"></div>
+            </div>
+            <div class="hero-content">
+                <div class="city-search-hero">
+                    <label for="city-search" class="city-label">🌍 Busca tu destino:</label>
+                    <div class="city-search-container" id="city-search-container">
+                        <input type="text" id="city-search" class="city-search-input"
+                            placeholder="Escribe cualquier ciudad del mundo..." autocomplete="off">
+                        <div class="city-search-results" id="city-search-results"></div>
+                    </div>
+                </div>
+                <div class="current-city-display" id="current-city-display">
+                    <span class="exploring-label">Explorando:</span>
+                    <span class="current-city-name" id="current-city-name">Madrid, España</span>
+                </div>
+                <h1 class="hero-title"><span class="gradient-text">Descubre cualquier ciudad</span><br>del mundo</h1>
+                <p class="hero-subtitle">Busca <strong>cualquier ciudad</strong> y crea rutas únicas personalizadas con
+                    eventos locales y transporte.</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary" id="start-wizard"><span>Comenzar Aventura</span></button>
+                    <button class="btn btn-secondary" id="explore-routes"><span>Explorar Rutas</span></button>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat"><span class="stat-number">∞</span><span class="stat-label">Ciudades</span></div>
+                    <div class="stat"><span class="stat-number">6+</span><span class="stat-label">Lugares</span></div>
+                    <div class="stat"><span class="stat-number">4+</span><span class="stat-label">Eventos</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 📢 ANUNCIO 1: Banner después del Hero -->
+        <div class="ad-container">
+            <div class="ad-banner" id="ad-hero">
+                <!-- Google AdSense Unit - Reemplaza cuando te aprueben -->
+                <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                    data-ad-slot="XXXXXXXXXX" data-ad-format="auto" data-full-width-responsive="true"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+        </div>
+
+        <!-- 🏨 AFILIADOS: Booking & Tours -->
+        <section class="affiliate-section">
+            <div class="container">
+                <div class="affiliate-cards">
+                    <a href="https://www.booking.com/index.html?aid=YOUR_AFFILIATE_ID" target="_blank"
+                        rel="noopener sponsored" class="affiliate-card">
+                        <span class="affiliate-icon">🏨</span>
+                        <span class="affiliate-text">Reserva tu hotel</span>
+                        <span class="affiliate-cta">Booking.com</span>
+                    </a>
+                    <a href="https://www.getyourguide.com/?partner_id=YOUR_ID" target="_blank" rel="noopener sponsored"
+                        class="affiliate-card">
+                        <span class="affiliate-icon">🎫</span>
+                        <span class="affiliate-text">Tours y actividades</span>
+                        <span class="affiliate-cta">GetYourGuide</span>
+                    </a>
+                    <a href="https://www.skyscanner.es/?associateID=YOUR_ID" target="_blank" rel="noopener sponsored"
+                        class="affiliate-card">
+                        <span class="affiliate-icon">✈️</span>
+                        <span class="affiliate-text">Vuelos baratos</span>
+                        <span class="affiliate-cta">Skyscanner</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal Wizard -->
+        <div class="modal" id="preferences-modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content wizard-modal">
+                <button class="modal-close" id="close-wizard">×</button>
+                <div class="wizard-container">
+                    <div class="wizard-progress">
+                        <div class="progress-bar" id="wizard-progress-bar"></div>
+                    </div>
+                    <div class="wizard-steps" id="wizard-steps"></div>
+                    <div class="wizard-navigation">
+                        <button class="btn btn-ghost" id="wizard-prev" disabled>Anterior</button>
+                        <button class="btn btn-primary" id="wizard-next">Siguiente</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <section id="preferences" class="section preferences-section">
+            <div class="container">
+                <div class="section-header"><span class="section-tag">Personalización</span>
+                    <h2 class="section-title">Tu perfil de viajero</h2>
+                </div>
+                <div class="preferences-display" id="preferences-display">
+                    <div class="pref-empty-state"><span class="empty-icon">✨</span>
+                        <h3>Aún no has configurado tus preferencias</h3><button class="btn btn-primary"
+                            id="setup-prefs-btn">Configurar ahora</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="routes" class="section routes-section">
+            <div class="container">
+                <div class="section-header"><span class="section-tag">Rutas IA</span>
+                    <h2 class="section-title">Rutas diseñadas para ti</h2>
+                </div>
+                <div class="routes-container">
+                    <div class="routes-filters">
+                        <button class="filter-btn active" data-filter="all">Todas</button>
+                        <button class="filter-btn" data-filter="morning">Mañana</button>
+                        <button class="filter-btn" data-filter="afternoon">Tarde</button>
+                        <button class="filter-btn" data-filter="evening">Noche</button>
+                    </div>
+                    <div class="routes-grid" id="routes-grid"></div>
+                    <button class="btn btn-primary btn-lg" id="generate-route">Generar Nueva Ruta</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 📢 ANUNCIO 2: Entre secciones -->
+        <div class="ad-container">
+            <div class="ad-banner" id="ad-middle">
+                <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                    data-ad-slot="XXXXXXXXXX" data-ad-format="auto" data-full-width-responsive="true"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+        </div>
+
+        <section id="map-section" class="section map-section">
+            <div class="container-fluid">
+                <div class="section-header"><span class="section-tag">Mapa Interactivo</span>
+                    <h2 class="section-title">Explora visualmente</h2>
+                </div>
+                <div class="map-container">
+                    <div id="map" class="map"></div>
+                    <aside class="map-sidebar" id="map-sidebar">
+                        <h3>Detalles del lugar</h3>
+                        <div class="place-details" id="place-details">
+                            <p class="sidebar-empty">Selecciona un lugar en el mapa</p>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+        </section>
+
+        <section id="events" class="section events-section">
+            <div class="container">
+                <div class="section-header"><span class="section-tag">Eventos Ocultos</span>
+                    <h2 class="section-title">Experiencias que otros no conocen</h2>
+                </div>
+                <div class="events-filters">
+                    <button class="event-filter active" data-category="all">Todos</button>
+                    <button class="event-filter" data-category="music">🎵 Música</button>
+                    <button class="event-filter" data-category="market">🛒 Mercados</button>
+                    <button class="event-filter" data-category="art">🎨 Arte</button>
+                    <button class="event-filter" data-category="food">🍴 Gastro</button>
+                </div>
+                <div class="events-grid" id="events-grid"></div>
+            </div>
+        </section>
+
+        <section id="transport" class="section transport-section">
+            <div class="container">
+                <div class="section-header"><span class="section-tag">Transporte Local</span>
+                    <h2 class="section-title">Conexiones en tiempo real</h2>
+                </div>
+                <div class="transport-container">
+                    <div class="transport-lines" id="transport-lines"></div>
+                    <div class="transport-schedule" id="transport-schedule">
+                        <div class="schedule-header">
+                            <h3>Próximos horarios</h3><span class="live-indicator"><span class="pulse"></span>En
+                                vivo</span>
+                        </div>
+                        <div class="schedule-list" id="schedule-list">
+                            <p class="schedule-empty">Selecciona una línea</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 📢 ANUNCIO 3: Antes del footer -->
+        <div class="ad-container">
+            <div class="ad-banner" id="ad-footer">
+                <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                    data-ad-slot="XXXXXXXXXX" data-ad-format="auto" data-full-width-responsive="true"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand"><span class="logo-icon">🧭</span><span class="logo-text">WanderMind</span>
+                </div>
+                <nav class="footer-links">
+                    <a href="#home">Inicio</a>
+                    <a href="#routes">Rutas</a>
+                    <a href="#events">Eventos</a>
+                    <a href="privacy.html">Privacidad</a>
+                </nav>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 WanderMind by Alain. Explora cualquier ciudad del mundo.</p>
+            </div>
+        </div>
+    </footer>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="data/places.js"></script>
+    <script src="data/events.js"></script>
+    <script src="data/transport.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
