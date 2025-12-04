@@ -100,7 +100,7 @@
                 // bbox is [minLat, maxLat, minLon, maxLon]
                 const [minLat, maxLat, minLon, maxLon] = city.bbox;
                 const query = `
-                    [out:json][timeout:25];
+                    [out:json][timeout:45];
                     (
                       relation["route"="subway"](${minLat},${minLon},${maxLat},${maxLon});
                       relation["route"="tram"](${minLat},${minLon},${maxLat},${maxLon});
@@ -109,10 +109,19 @@
                     out geom;
                 `;
 
+                // Add a controller to abort fetch if it takes too long (e.g., 10s) to keep UI snappy
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s max wait for network
+
                 const response = await fetch('https://overpass-api.de/api/interpreter', {
                     method: 'POST',
-                    body: query
+                    body: query,
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) throw new Error(`Overpass API error: ${response.status}`);
+
                 const data = await response.json();
 
                 if (!data.elements || data.elements.length === 0) return this.generateFallbackTransport();
@@ -139,7 +148,7 @@
 
                 return this.transport;
             } catch (error) {
-                console.error('Error fetching transport:', error);
+                console.warn('Transport fetch failed or timed out, using fallback:', error);
                 return this.generateFallbackTransport();
             }
         }
