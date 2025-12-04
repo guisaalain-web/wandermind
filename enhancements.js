@@ -21,8 +21,169 @@
     }
 
     // =========================================
-    // 2. FAVORITES SYSTEM
+    // CITY HISTORY (últimas 5 ciudades)
     // =========================================
+    const CityHistory = {
+        key: 'wandermind_city_history',
+
+        getAll() {
+            return JSON.parse(localStorage.getItem(this.key) || '[]');
+        },
+
+        add(city) {
+            let history = this.getAll();
+            // Remove if already exists
+            history = history.filter(c => c.name !== city.name);
+            // Add to beginning
+            history.unshift({
+                name: city.name,
+                country: city.country,
+                lat: city.lat,
+                lng: city.lng,
+                visitedAt: new Date().toISOString()
+            });
+            // Keep only last 5
+            history = history.slice(0, 5);
+            localStorage.setItem(this.key, JSON.stringify(history));
+        },
+
+        render() {
+            const history = this.getAll();
+            if (history.length === 0) return;
+
+            // Create history chips below search
+            const searchPanel = document.querySelector('.search-panel');
+            if (!searchPanel) return;
+
+            let historyEl = document.getElementById('city-history');
+            if (!historyEl) {
+                historyEl = document.createElement('div');
+                historyEl.id = 'city-history';
+                historyEl.className = 'city-history';
+                searchPanel.parentNode.insertBefore(historyEl, searchPanel.nextSibling);
+            }
+
+            historyEl.innerHTML = `
+                <span class="history-label">Recientes:</span>
+                ${history.map(c => `
+                    <button class="history-chip" data-city='${JSON.stringify(c)}'>
+                        📍 ${c.name}
+                    </button>
+                `).join('')}
+            `;
+
+            historyEl.querySelectorAll('.history-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const city = JSON.parse(chip.dataset.city);
+                    if (window.app) {
+                        window.app.selectCity(city);
+                    }
+                });
+            });
+        }
+    };
+
+    // =========================================
+    // FILTERS PERSISTENCE
+    // =========================================
+    const FiltersPersistence = {
+        key: 'wandermind_filters',
+
+        save(type, value) {
+            const filters = JSON.parse(localStorage.getItem(this.key) || '{}');
+            filters[type] = value;
+            localStorage.setItem(this.key, JSON.stringify(filters));
+        },
+
+        get(type) {
+            const filters = JSON.parse(localStorage.getItem(this.key) || '{}');
+            return filters[type] || 'all';
+        },
+
+        restore() {
+            // Restore route filter
+            const routeFilter = this.get('routes');
+            const routeBtn = document.querySelector(`.filter-btn[data-filter="${routeFilter}"]`);
+            if (routeBtn) {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                routeBtn.classList.add('active');
+                if (window.app) window.app.filterRoutes(routeFilter);
+            }
+
+            // Restore event filter
+            const eventFilter = this.get('events');
+            const eventBtn = document.querySelector(`.event-filter[data-category="${eventFilter}"]`);
+            if (eventBtn) {
+                document.querySelectorAll('.event-filter').forEach(b => b.classList.remove('active'));
+                eventBtn.classList.add('active');
+                if (window.app) window.app.filterEvents(eventFilter);
+            }
+        },
+
+        init() {
+            // Listen for filter changes
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this.save('routes', btn.dataset.filter);
+                });
+            });
+
+            document.querySelectorAll('.event-filter').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this.save('events', btn.dataset.category);
+                });
+            });
+
+            // Restore saved filters
+            setTimeout(() => this.restore(), 1500);
+        }
+    };
+
+    // =========================================
+    // TAB STATE PERSISTENCE
+    // =========================================
+    const TabPersistence = {
+        key: 'wandermind_active_tab',
+
+        save(tab) {
+            localStorage.setItem(this.key, tab);
+        },
+
+        get() {
+            return localStorage.getItem(this.key) || 'routes';
+        },
+
+        init() {
+            document.querySelectorAll('.search-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    this.save(tab.dataset.tab);
+                });
+            });
+
+            // Restore active tab
+            const savedTab = this.get();
+            const tabBtn = document.querySelector(`.search-tab[data-tab="${savedTab}"]`);
+            if (tabBtn) {
+                document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
+                tabBtn.classList.add('active');
+            }
+        }
+    };
+
+    // =========================================
+    // GENERATED ROUTES PERSISTENCE
+    // =========================================
+    const RoutesPersistence = {
+        key: 'wandermind_generated_routes',
+
+        save(routes, city) {
+            localStorage.setItem(this.key, JSON.stringify({ routes, city, savedAt: new Date().toISOString() }));
+        },
+
+        get() {
+            return JSON.parse(localStorage.getItem(this.key) || 'null');
+        }
+    };
     const FavoritesManager = {
         key: 'wandermind_favorites',
 
@@ -286,6 +447,25 @@
         // Enhanced route cards
         setTimeout(enhanceRouteCards, 1000);
 
+        // Filter persistence
+        setTimeout(() => FiltersPersistence.init(), 1200);
+
+        // Tab persistence
+        setTimeout(() => TabPersistence.init(), 300);
+
+        // City history
+        setTimeout(() => CityHistory.render(), 1500);
+
+        // Hook into city selection
+        if (window.app && window.app.selectCity) {
+            const originalSelectCity = window.app.selectCity.bind(window.app);
+            window.app.selectCity = async function (city) {
+                CityHistory.add(city);
+                await originalSelectCity(city);
+                CityHistory.render();
+            };
+        }
+
         console.log('✅ All enhancements loaded!');
     }
 
@@ -299,6 +479,10 @@
     // Expose to global
     window.WanderMindEnhancements = {
         FavoritesManager,
+        CityHistory,
+        FiltersPersistence,
+        TabPersistence,
+        RoutesPersistence,
         shareRoute,
         copyRouteLink,
         showSkeletons,

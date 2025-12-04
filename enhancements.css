@@ -2,6 +2,38 @@
    WANDERMIND ENHANCEMENTS CSS
    ========================================= */
 
+/* CITY HISTORY */
+.city-history {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    padding: 0.5rem;
+}
+
+.history-label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.history-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 0.4rem 0.8rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.history-chip:hover {
+    background: rgba(0, 217, 255, 0.1);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+}
+
 /* SKELETON LOADERS */
 .skeleton-card {
     background: var(--bg-secondary);
@@ -11,10 +43,10 @@
 }
 
 .skeleton {
-    background: linear-gradient(90deg, 
-        rgba(255,255,255,0.05) 25%, 
-        rgba(255,255,255,0.1) 50%, 
-        rgba(255,255,255,0.05) 75%);
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0.05) 25%,
+            rgba(255, 255, 255, 0.1) 50%,
+            rgba(255, 255, 255, 0.05) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: 8px;
@@ -42,8 +74,13 @@
 }
 
 @keyframes shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
 }
 
 /* SCROLL ANIMATIONS */
@@ -59,15 +96,37 @@
 }
 
 /* Staggered animation for cards */
-.route-card.animate-in:nth-child(1) { transition-delay: 0.1s; }
-.route-card.animate-in:nth-child(2) { transition-delay: 0.2s; }
-.route-card.animate-in:nth-child(3) { transition-delay: 0.3s; }
+.route-card.animate-in:nth-child(1) {
+    transition-delay: 0.1s;
+}
 
-.event-card.animate-in:nth-child(1) { transition-delay: 0.1s; }
-.event-card.animate-in:nth-child(2) { transition-delay: 0.15s; }
-.event-card.animate-in:nth-child(3) { transition-delay: 0.2s; }
-.event-card.animate-in:nth-child(4) { transition-delay: 0.25s; }
-.event-card.animate-in:nth-child(5) { transition-delay: 0.3s; }
+.route-card.animate-in:nth-child(2) {
+    transition-delay: 0.2s;
+}
+
+.route-card.animate-in:nth-child(3) {
+    transition-delay: 0.3s;
+}
+
+.event-card.animate-in:nth-child(1) {
+    transition-delay: 0.1s;
+}
+
+.event-card.animate-in:nth-child(2) {
+    transition-delay: 0.15s;
+}
+
+.event-card.animate-in:nth-child(3) {
+    transition-delay: 0.2s;
+}
+
+.event-card.animate-in:nth-child(4) {
+    transition-delay: 0.25s;
+}
+
+.event-card.animate-in:nth-child(5) {
+    transition-delay: 0.3s;
+}
 
 /* ROUTE CARD IMAGES */
 .route-image {
@@ -96,7 +155,7 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(10px);
     border: none;
     font-size: 1.25rem;
@@ -107,7 +166,7 @@
 
 .fav-btn:hover {
     transform: scale(1.1);
-    background: rgba(0,0,0,0.7);
+    background: rgba(0, 0, 0, 0.7);
 }
 
 .fav-btn.active {
@@ -115,8 +174,15 @@
 }
 
 @keyframes heartBeat {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.3); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.3);
+    }
 }
 
 /* ROUTE ACTIONS */
@@ -130,7 +196,7 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--glass-border);
     cursor: pointer;
     font-size: 1rem;
@@ -138,7 +204,7 @@
 }
 
 .btn-icon:hover {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     transform: scale(1.05);
 }
 
@@ -246,21 +312,40 @@
     animation: slideIn 0.3s ease;
 }
 
-.toast.success { border-left-color: #22c55e; }
-.toast.error { border-left-color: #ef4444; }
+.toast.success {
+    border-left-color: #22c55e;
+}
+
+.toast.error {
+    border-left-color: #ef4444;
+}
 
 .toast.fade-out {
     animation: slideOut 0.3s ease forwards;
 }
 
 @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
 @keyframes slideOut {
-    from { transform: translateX(0); opacity: 1; }
-    to { transform: translateX(100%); opacity: 0; }
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
 }
 
 .toast-icon {
@@ -275,7 +360,7 @@
         width: 44px;
         height: 44px;
     }
-    
+
     .route-image {
         height: 120px;
     }
