@@ -94,7 +94,7 @@
     </header>
 
     <main id="main-content">
-        <!-- HERO SECTION - SKYSCANNER STYLE -->
+        <!-- HERO SECTION - MULTI-CITY TOUR -->
         <section id="home" class="hero">
             <div class="hero-bg">
                 <div class="floating-orb orb-1"></div>
@@ -102,19 +102,27 @@
                 <div class="floating-orb orb-3"></div>
             </div>
             <div class="hero-content">
-                <h1 class="hero-title-new">Descubre tu próxima aventura</h1>
-                <p class="hero-subtitle-new">Rutas personalizadas con IA en cualquier ciudad del mundo</p>
+                <h1 class="hero-title-new">Crea tu tour perfecto</h1>
+                <p class="hero-subtitle-new">Selecciona una o varias ciudades y obtén itinerarios profesionales</p>
 
-                <!-- Search Panel -->
-                <div class="search-panel">
+                <!-- Multi-City Search Panel -->
+                <div class="search-panel multi-city-panel">
                     <div class="search-tabs">
-                        <button class="search-tab active" data-tab="routes">
+                        <button class="search-tab active" data-tab="multi-tour">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                                 <circle cx="12" cy="10" r="3"></circle>
                             </svg>
-                            Rutas
+                            Multi-Tour
+                        </button>
+                        <button class="search-tab" data-tab="transport">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                <path d="M3 9h18M9 21V9"></path>
+                            </svg>
+                            Transporte
                         </button>
                         <button class="search-tab" data-tab="events">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -122,20 +130,12 @@
                                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                                 <line x1="16" y1="2" x2="16" y2="6"></line>
                                 <line x1="8" y1="2" x2="8" y2="6"></line>
-                                <line x1="3" y1="10" x2="21" y2="10"></line>
                             </svg>
                             Eventos
                         </button>
-                        <button class="search-tab" data-tab="transport">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-                                <path d="M9 9h6v6H9z"></path>
-                            </svg>
-                            Transporte
-                        </button>
                     </div>
 
+                    <!-- City Search -->
                     <div class="search-box">
                         <div class="search-input-wrapper city-search-container" id="city-search-container">
                             <svg class="search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -144,44 +144,80 @@
                                 <path d="m21 21-4.35-4.35"></path>
                             </svg>
                             <input type="text" id="city-search" class="search-input-main"
-                                placeholder="¿A dónde quieres ir?" autocomplete="off">
+                                placeholder="Busca ciudades y pulsa Enter para añadir..." autocomplete="off">
                             <div class="city-search-results" id="city-search-results"></div>
                         </div>
-                        <button class="search-btn" id="start-wizard">
-                            <span>Comenzar</span>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                <polyline points="12 5 19 12 12 19"></polyline>
-                            </svg>
+                    </div>
+
+                    <!-- Selected Cities Chips -->
+                    <div class="selected-cities-container" id="selected-cities">
+                        <div class="cities-chips" id="cities-chips">
+                            <!-- Chips de ciudades seleccionadas se insertan aquí -->
+                        </div>
+                        <p class="cities-hint" id="cities-hint">Añade ciudades para crear tu tour multi-destino</p>
+                    </div>
+
+                    <!-- Tour Configuration -->
+                    <div class="tour-config" id="tour-config" style="display: none;">
+                        <div class="config-row">
+                            <div class="config-item">
+                                <label>📅 Días totales</label>
+                                <select id="tour-days" class="config-select">
+                                    <option value="1">1 día</option>
+                                    <option value="2">2 días</option>
+                                    <option value="3" selected>3 días</option>
+                                    <option value="5">5 días</option>
+                                    <option value="7">7 días</option>
+                                    <option value="10">10 días</option>
+                                    <option value="14">14 días</option>
+                                </select>
+                            </div>
+                            <div class="config-item">
+                                <label>🎯 Estilo de viaje</label>
+                                <select id="tour-style" class="config-select">
+                                    <option value="cultural">🏛️ Cultural</option>
+                                    <option value="gastronomic">🍽️ Gastronómico</option>
+                                    <option value="adventure">🏔️ Aventura</option>
+                                    <option value="romantic">💑 Romántico</option>
+                                    <option value="budget">💰 Low Cost</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn-generate-tour" id="generate-tour">
+                            <span>✨ Generar Itinerario Profesional</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Current City Badge -->
-                <div class="current-city-badge" id="current-city-display">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                        <circle cx="12" cy="10" r="3"></circle>
-                    </svg>
-                    <span id="current-city-name">Madrid, España</span>
+                <!-- Quick City Buttons -->
+                <div class="quick-cities">
+                    <span class="quick-label">Populares:</span>
+                    <button class="quick-city-btn" data-city="madrid">🇪🇸 Madrid</button>
+                    <button class="quick-city-btn" data-city="barcelona">🇪🇸 Barcelona</button>
+                    <button class="quick-city-btn" data-city="paris">🇫🇷 París</button>
+                    <button class="quick-city-btn" data-city="london">🇬🇧 Londres</button>
+                    <button class="quick-city-btn" data-city="rome">🇮🇹 Roma</button>
+                    <button class="quick-city-btn" data-city="berlin">🇩🇪 Berlín</button>
+                    <button class="quick-city-btn" data-city="amsterdam">🇳🇱 Ámsterdam</button>
+                    <button class="quick-city-btn" data-city="newyork">🇺🇸 Nueva York</button>
+                    <button class="quick-city-btn" data-city="tokyo">🇯🇵 Tokio</button>
                 </div>
 
                 <!-- Stats -->
                 <div class="hero-stats-new">
                     <div class="stat-item">
-                        <span class="stat-number">∞</span>
+                        <span class="stat-number">10+</span>
                         <span class="stat-label">Ciudades</span>
                     </div>
                     <div class="stat-divider"></div>
                     <div class="stat-item">
-                        <span class="stat-number">100K+</span>
-                        <span class="stat-label">Lugares</span>
+                        <span class="stat-number">∞</span>
+                        <span class="stat-label">Combinaciones</span>
                     </div>
                     <div class="stat-divider"></div>
                     <div class="stat-item">
-                        <span class="stat-number">24/7</span>
-                        <span class="stat-label">Eventos</span>
+                        <span class="stat-number">🚇</span>
+                        <span class="stat-label">Transporte Real</span>
                     </div>
                 </div>
             </div>
@@ -214,6 +250,24 @@
                     <div class="pref-empty-state"><span class="empty-icon">✨</span>
                         <h3>Aún no has configurado tus preferencias</h3><button class="btn btn-primary"
                             id="setup-prefs-btn">Configurar ahora</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="itinerary" class="section itinerary-section">
+            <div class="container">
+                <div class="section-header"><span class="section-tag">✨ Itinerario Profesional</span>
+                    <h2 class="section-title">Tu tour personalizado</h2>
+                </div>
+                <div class="itinerary-container" id="itinerary-container">
+                    <div class="itinerary-empty" id="itinerary-empty">
+                        <span class="empty-icon">🗺️</span>
+                        <h3>Selecciona ciudades arriba para generar tu itinerario</h3>
+                        <p>Recibirás un plan detallado día por día con mañana, tarde y noche</p>
+                    </div>
+                    <div class="itinerary-content" id="itinerary-content" style="display: none;">
+                        <!-- Itinerary days will be inserted here -->
                     </div>
                 </div>
             </div>
@@ -315,7 +369,10 @@
     <script src="data/places.js"></script>
     <script src="data/events.js"></script>
     <script src="data/transport.js"></script>
+    <script src="data/cities-transport.js"></script>
+    <script src="data/itinerary-templates.js"></script>
     <script src="app.js"></script>
+    <script src="multi-tour.js"></script>
     <script>
         // Tab switching with scroll
         document.querySelectorAll('.search-tab').forEach(tab => {
@@ -324,8 +381,8 @@
                 this.classList.add('active');
 
                 const targetTab = this.dataset.tab;
-                if (targetTab === 'routes') {
-                    document.getElementById('routes').scrollIntoView({ behavior: 'smooth' });
+                if (targetTab === 'multi-tour') {
+                    document.getElementById('itinerary').scrollIntoView({ behavior: 'smooth' });
                 } else if (targetTab === 'events') {
                     document.getElementById('events').scrollIntoView({ behavior: 'smooth' });
                 } else if (targetTab === 'transport') {
