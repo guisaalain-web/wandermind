@@ -1,91 +1,159 @@
-# FitBattle Gym 🏋️‍♂️
+# 🏋️‍♂️ FitBattle Gym
 
-**Aplicación Gamificada de Entrenamiento**
+**Aplicación Web Gamificada de Entrenamiento**
 
-FitBattle Gym es una aplicación web que combina ejercicio físico con mecánicas de videojuegos para motivar a los usuarios. El sistema gestiona usuarios, sesiones de entrenamiento, ejercicios, puntos, niveles y logros en una base de datos completa y normalizada.
+> *Transforma tu entrenamiento en una aventura épica con puntos, niveles y logros*
 
-## 🎯 Características Principales
+[![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/es/docs/Web/HTML)
+[![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)](https://developer.mozilla.org/es/docs/Web/CSS)
+[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/es/docs/Web/JavaScript)
 
-- **Gestión de Usuarios**: Registro completo con perfil, foto y bono activo
-- **Sesiones de Entrenamiento**: Registro detallado de cada sesión con fecha, duración y calorías
-- **Catálogo de Ejercicios**: Base de datos con ejercicios, tipo, músculo principal y videos tutoriales
-- **Sistema de Puntos**: Acumulación de puntos según el rendimiento
-- **Niveles**: Sistema de progresión basado en puntos acumulados
-- **Logros**: Sistema de recompensas por cumplir metas
-- **Historial Completo**: Consulta de todas las sesiones y progreso del usuario
+---
 
-## 📊 Modelo de Datos
+## 📖 Descripción
 
-El sistema utiliza un modelo de base de datos normalizado (3FN) con las siguientes entidades:
+FitBattle Gym es una aplicación web que combina **ejercicio físico** con **mecánicas de videojuegos** para motivar a los usuarios. El sistema:
 
-- **USUARIO**: Información personal y perfil del usuario
-- **SESION_ENTRENAMIENTO**: Registro de cada sesión de entrenamiento
-- **EJERCICIO**: Catálogo de ejercicios disponibles
-- **SESION_EJERCICIO**: Ejercicios realizados en cada sesión
-- **NIVEL**: Sistema de niveles con puntos mínimos
-- **LOGRO**: Logros disponibles para desbloquear
-- **USUARIO_LOGRO**: Relación usuario-logro con fecha de obtención
+- 📊 **Gestiona datos** de usuarios, sesiones y ejercicios
+- 📈 **Registra métricas** detalladas (series, repeticiones, tiempo, peso)
+- 🏆 **Recompensa el progreso** con puntos, niveles y logros
+- 💾 **Almacena datos** en localStorage (no requiere servidor)
+
+---
+
+## ✨ Características
+
+| Funcionalidad | Descripción |
+|---------------|-------------|
+| 👤 **Gestión de Usuarios** | CRUD completo con foto, email, teléfono y estado de bono |
+| 📋 **Catálogo de Ejercicios** | Base de datos con videos tutoriales |
+| 🏃 **Registro de Sesiones** | Fecha, duración, calorías y ejercicios realizados |
+| ⭐ **Sistema de Puntos** | Puntos por repeticiones, peso levantado y cardio |
+| 📊 **Niveles de Progresión** | 7 niveles desde Principiante hasta Leyenda |
+| 🏅 **Sistema de Logros** | 8 logros desbloqueables por cumplir metas |
+
+---
+
+## 🗃️ Modelo de Base de Datos (3FN)
+
+El sistema implementa **7 entidades** normalizadas en Tercera Forma Normal:
+
+```
+USUARIO ─────1:M────▶ SESION_ENTRENAMIENTO ─────1:M────▶ SESION_EJERCICIO
+    │                                                          │
+    │                                                          │
+    └───1:M───▶ USUARIO_LOGRO ◀───M:1─── LOGRO                │ M:1
+                                                               │
+                                            EJERCICIO ◀────────┘
+                                            
+                NIVEL (asigna nivel por puntos)
+```
+
+📄 **Ver documentación completa:** [MODELO_DATOS.md](MODELO_DATOS.md)
+
+---
 
 ## 🚀 Instalación y Uso
 
-1. Descarga o clona este repositorio
-2. Abre `index.html` en tu navegador web
-3. No requiere servidor - funciona completamente en el navegador usando localStorage
+### Opción 1: Ejecución Local
+```bash
+# Clonar el repositorio
+git clone https://github.com/tu-usuario/FitBattle-Gym.git
+
+# Abrir en el navegador
+# Simplemente abre el archivo index.html
+```
+
+### Opción 2: Desde GitHub Pages
+Visita: `https://tu-usuario.github.io/FitBattle-Gym`
+
+> ⚠️ **Nota**: La aplicación usa localStorage, los datos se almacenan localmente en tu navegador.
+
+---
 
 ## 📁 Estructura del Proyecto
 
 ```
 FitBattle-Gym/
-├── index.html              # Página principal
-├── css/
-│   └── styles.css          # Estilos de la aplicación
-├── js/
-│   ├── database.js         # Gestión de base de datos (localStorage)
-│   ├── models.js           # Modelos de datos
-│   ├── app.js              # Lógica principal de la aplicación
-│   └── gamification.js     # Sistema de gamificación
-├── assets/
-│   └── images/             # Imágenes y recursos
-└── README.md               # Este archivo
+├── 📄 index.html            # Página principal
+├── 📁 css/
+│   └── styles.css           # Estilos de la aplicación
+├── 📁 js/
+│   ├── models.js            # Modelos de datos (entidades 3FN)
+│   ├── database.js          # Gestión de localStorage (CRUD)
+│   ├── gamification.js      # Sistema de puntos, niveles y logros
+│   └── app.js               # Lógica principal de la UI
+├── 📄 MODELO_DATOS.md       # Documentación del modelo de datos
+├── 📄 README.md             # Este archivo
+└── 📄 .gitignore
 ```
 
-## 🎮 Funcionalidades
+---
 
-### Para Usuarios:
-- Registro y perfil personalizado
-- Registro de sesiones de entrenamiento
-- Selección de ejercicios del catálogo
-- Visualización de puntos y nivel actual
-- Consulta de logros desbloqueados
-- Historial completo de entrenamientos
+## 🎮 Sistema de Gamificación
 
-### Para Entrenadores:
-- Visualización de todos los usuarios
-- Seguimiento del progreso de cada usuario
-- Consulta de estadísticas y métricas
+### Niveles
+| Nivel | Puntos Requeridos |
+|-------|-------------------|
+| 🌱 Principiante | 0 |
+| 📚 Novato | 100 |
+| 💪 Intermedio | 500 |
+| 🔥 Avanzado | 1,000 |
+| ⚡ Experto | 2,500 |
+| 🎯 Maestro | 5,000 |
+| 👑 Leyenda | 10,000 |
 
-## 🛠️ Tecnologías Utilizadas
+### Logros
+- 🎯 **Primeros Pasos** - Completa tu primera sesión
+- 🌟 **Aprendiz** - Completa 5 sesiones
+- 💪 **Fuerza Bruta** - Levanta más de 100kg en total
+- 🏃 **Resistencia** - Corre más de 60 minutos en total
+- 🔥 **Persistente** - Entrena 10 días seguidos
+- ⚡ **Quemador** - Quema más de 5000 calorías
+- 👑 **Campeón** - Alcanza el nivel Experto
+- 🏆 **Leyenda Viva** - Alcanza 10000 puntos
 
-- HTML5
-- CSS3 (con diseño moderno y responsive)
-- JavaScript (ES6+)
-- LocalStorage para persistencia de datos
-- No requiere frameworks externos
+---
 
-## 📝 Notas de Desarrollo
+## 🛠️ Tecnologías
 
-Esta aplicación está diseñada como proyecto educativo y demuestra:
-- Diseño de base de datos normalizada (3FN)
-- Modelo Entidad-Relación bien estructurado
-- Gestión de datos complejos en JavaScript
-- Interfaz de usuario intuitiva y atractiva
-- Sistema de gamificación funcional
+- **HTML5** - Estructura semántica
+- **CSS3** - Diseño moderno con variables CSS
+- **JavaScript ES6+** - Clases, módulos y async
+- **LocalStorage API** - Persistencia de datos
 
-## 👨‍💻 Autor
+---
 
-Proyecto desarrollado para [nombre de la asignatura/profesor]
+## 📊 Tipos de Datos Implementados
+
+| Tipo | Ejemplo en el Modelo |
+|------|---------------------|
+| Texto | nombreCompleto, email |
+| Número | puntosTotales, calorias |
+| Fecha/Hora | fechaNacimiento, fechaSesion |
+| Sí/No | bonoActivo |
+| Hipervínculo | videoTutorial |
+| Datos Adjuntos | fotoPerfil, icono |
+
+---
+
+## 👨‍💻 Desarrollo
+
+Este proyecto fue desarrollado como trabajo académico para demostrar:
+- Diseño de bases de datos normalizadas (3FN)
+- Modelo Entidad-Relación
+- Implementación de aplicaciones web
+- Sistemas de gamificación
+
+---
 
 ## 📄 Licencia
 
 Proyecto educativo - Uso académico
 
+---
+
+<p align="center">
+  <strong>🏋️‍♂️ FitBattle Gym</strong><br>
+  <em>¡Entrena, sube de nivel, conviértete en leyenda!</em>
+</p>

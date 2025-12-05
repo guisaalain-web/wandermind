@@ -21,7 +21,7 @@ class FitBattleApp {
         this.loadInitialData();
         this.setupEventListeners();
         this.updateStats();
-        
+
         // Establecer fecha por defecto en el formulario de sesión
         const fechaInput = document.getElementById('fecha-sesion');
         if (fechaInput) {
@@ -29,6 +29,51 @@ class FitBattleApp {
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             fechaInput.value = now.toISOString().slice(0, 16);
         }
+    }
+
+    // ========================================
+    // SISTEMA DE NOTIFICACIONES TOAST
+    // ========================================
+
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const icons = {
+            success: '✅',
+            error: '❌',
+            info: 'ℹ️',
+            warning: '⚠️'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <span class="toast-icon">${icons[type] || icons.info}</span>
+            <span class="toast-message">${message}</span>
+            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+        `;
+
+        container.appendChild(toast);
+
+        // Eliminar automáticamente después de 3 segundos
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.remove();
+            }
+        }, 3000);
+    }
+
+    showSuccess(message) {
+        this.showToast(message, 'success');
+    }
+
+    showError(message) {
+        this.showToast(message, 'error');
+    }
+
+    showInfo(message) {
+        this.showToast(message, 'info');
     }
 
     // ========================================
@@ -42,11 +87,11 @@ class FitBattleApp {
                 e.preventDefault();
                 const sectionId = link.dataset.section;
                 this.showSection(sectionId);
-                
+
                 // Actualizar clase activa
                 navLinks.forEach(l => l.classList.remove('active'));
                 link.classList.add('active');
-                
+
                 // Cerrar menú móvil
                 const navMenu = document.getElementById('nav-menu');
                 navMenu.classList.remove('active');
@@ -68,13 +113,13 @@ class FitBattleApp {
         sections.forEach(section => {
             section.classList.remove('active');
         });
-        
+
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
             targetSection.classList.add('active');
-            
+
             // Cargar datos específicos según la sección
-            switch(sectionId) {
+            switch (sectionId) {
                 case 'usuarios':
                     this.renderUsuarios();
                     break;
@@ -167,7 +212,7 @@ class FitBattleApp {
         grid.innerHTML = usuarios.map(usuario => {
             const nivel = gamification.obtenerNivelUsuario(usuario);
             const edad = dataModels.calcularEdad(usuario.fechaNacimiento);
-            
+
             return `
                 <div class="usuario-card">
                     <div class="usuario-header">
@@ -221,7 +266,7 @@ class FitBattleApp {
 
     guardarUsuario(e) {
         e.preventDefault();
-        
+
         const usuarioData = {
             nombreCompleto: document.getElementById('nombre-completo').value,
             email: document.getElementById('email').value,
@@ -233,7 +278,7 @@ class FitBattleApp {
 
         const errors = dataModels.validateUsuario(usuarioData);
         if (errors.length > 0) {
-            alert('Errores:\n' + errors.join('\n'));
+            this.showError('Por favor corrige los errores: ' + errors.join(', '));
             return;
         }
 
@@ -255,6 +300,7 @@ class FitBattleApp {
         this.renderUsuarios();
         this.updateUsuariosSelect();
         this.updateStats();
+        this.showSuccess(this.editandoUsuarioId ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente');
     }
 
     eliminarUsuario(idUsuario) {
@@ -263,6 +309,7 @@ class FitBattleApp {
             this.renderUsuarios();
             this.updateUsuariosSelect();
             this.updateStats();
+            this.showSuccess('Usuario eliminado correctamente');
         }
     }
 
@@ -346,7 +393,7 @@ class FitBattleApp {
 
     guardarEjercicio(e) {
         e.preventDefault();
-        
+
         const ejercicioData = {
             nombreEjercicio: document.getElementById('nombre-ejercicio').value,
             tipo: document.getElementById('tipo-ejercicio').value,
@@ -389,7 +436,7 @@ class FitBattleApp {
         const ejercicios = database.getEjercicios();
         const select = document.getElementById('select-ejercicio-sesion');
         if (!select) return;
-        
+
         select.innerHTML = '<option value="">-- Selecciona un ejercicio --</option>' +
             ejercicios.map(e => `<option value="${e.idEjercicio}">${e.nombreEjercicio} (${e.tipo})</option>`).join('');
     }
@@ -404,7 +451,7 @@ class FitBattleApp {
 
     guardarEjercicioSesion(e) {
         e.preventDefault();
-        
+
         const idEjercicio = document.getElementById('select-ejercicio-sesion').value;
         const repeticiones = parseInt(document.getElementById('repeticiones').value) || 0;
         const pesoKg = parseFloat(document.getElementById('peso-kg').value) || 0;
@@ -513,7 +560,7 @@ class FitBattleApp {
         document.getElementById('calorias-sesion').value = '';
         this.currentSesionEjercicios = [];
         this.renderSesionEjercicios();
-        
+
         alert(`Sesión guardada exitosamente. Puntos obtenidos: ${puntos}`);
         this.updateStats();
         this.updateUsuariosSelect();
@@ -544,7 +591,7 @@ class FitBattleApp {
         const nivel = gamification.obtenerNivelUsuario(usuario);
         const progreso = gamification.obtenerProgresoNivel(usuario);
         const logros = gamification.obtenerLogrosUsuario(idUsuario);
-        const sesiones = database.getSesionesByUsuario(idUsuario).sort((a, b) => 
+        const sesiones = database.getSesionesByUsuario(idUsuario).sort((a, b) =>
             new Date(b.fechaSesion) - new Date(a.fechaSesion)
         );
 
@@ -602,12 +649,12 @@ class FitBattleApp {
 
             <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Historial de Sesiones</h3>
             <div class="sesiones-list">
-                ${sesiones.length === 0 ? '<p style="color: var(--text-secondary);">No hay sesiones registradas.</p>' : 
-                    sesiones.map(sesion => {
-                        const ejercicios = database.getSesionEjerciciosBySesion(sesion.idSesion);
-                        const puntos = gamification.calcularPuntosSesion(sesion, ejercicios);
-                        
-                        return `
+                ${sesiones.length === 0 ? '<p style="color: var(--text-secondary);">No hay sesiones registradas.</p>' :
+                sesiones.map(sesion => {
+                    const ejercicios = database.getSesionEjerciciosBySesion(sesion.idSesion);
+                    const puntos = gamification.calcularPuntosSesion(sesion, ejercicios);
+
+                    return `
                             <div class="sesion-item">
                                 <div class="sesion-header">
                                     <div class="sesion-fecha">${dataModels.formatearFechaHora(sesion.fechaSesion)}</div>
@@ -620,18 +667,18 @@ class FitBattleApp {
                                 <div class="sesion-ejercicios">
                                     <strong>Ejercicios (${ejercicios.length}):</strong>
                                     ${ejercicios.map(se => {
-                                        const ejercicio = database.getEjercicio(se.idEjercicio);
-                                        let detalle = [];
-                                        if (se.repeticiones > 0) detalle.push(`${se.repeticiones} reps`);
-                                        if (se.pesoKg > 0) detalle.push(`${se.pesoKg} kg`);
-                                        if (se.minutos > 0) detalle.push(`${se.minutos} min`);
-                                        return `<span style="display: inline-block; margin: 0.25rem 0.5rem; padding: 0.25rem 0.75rem; background: var(--light-bg); border-radius: 5px;">${ejercicio.nombreEjercicio} (${detalle.join(', ')})</span>`;
-                                    }).join('')}
+                        const ejercicio = database.getEjercicio(se.idEjercicio);
+                        let detalle = [];
+                        if (se.repeticiones > 0) detalle.push(`${se.repeticiones} reps`);
+                        if (se.pesoKg > 0) detalle.push(`${se.pesoKg} kg`);
+                        if (se.minutos > 0) detalle.push(`${se.minutos} min`);
+                        return `<span style="display: inline-block; margin: 0.25rem 0.5rem; padding: 0.25rem 0.75rem; background: var(--light-bg); border-radius: 5px;">${ejercicio.nombreEjercicio} (${detalle.join(', ')})</span>`;
+                    }).join('')}
                                 </div>
                             </div>
                         `;
-                    }).join('')
-                }
+                }).join('')
+            }
             </div>
         `;
 
