@@ -781,9 +781,17 @@
             const allLines = [...(transport.metro || []).map(l => ({ ...l, type: 'metro' })), ...(transport.bus || []).map(l => ({ ...l, type: 'bus' }))];
 
             linesContainer.innerHTML = allLines.map(line => `
-                <div class="transport-line" data-line-id="${line.id}" data-frequency="${line.frequency}">
-                    <div class="line-badge ${line.type}" style="background:${line.color}">${line.id}</div>
-                    <div class="line-info"><h4>${line.name}</h4><p>${line.route}</p></div>
+                <div class="transport-line-card" data-line-id="${line.id}" data-frequency="${line.frequency}" style="border-left: 4px solid ${line.color}">
+                    <div class="line-card-header">
+                        <span class="line-badge" style="background-color: ${line.color}">${line.id}</span>
+                        <div class="line-info-main">
+                            <span class="line-name">${line.name}</span>
+                            <span class="line-route-text">${line.route}</span>
+                        </div>
+                        <div class="line-status-indicator">
+                            <span class="status-dot pulse"></span>
+                        </div>
+                    </div>
                 </div>
             `).join('');
 
