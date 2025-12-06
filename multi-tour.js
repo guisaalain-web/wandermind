@@ -37,55 +37,90 @@
         setupCitySearch() {
             const searchInput = document.getElementById('city-search');
             const resultsContainer = document.getElementById('city-search-results');
+            let searchTimeout = null;
 
             if (!searchInput) return;
 
-            searchInput.addEventListener('input', (e) => {
-                const query = e.target.value.toLowerCase();
+            const performSearch = async (query) => {
                 if (query.length < 2) {
                     resultsContainer.innerHTML = '';
                     resultsContainer.style.display = 'none';
                     return;
                 }
 
-                // Search in CITIES_TRANSPORT
-                const matches = Object.keys(CITIES_TRANSPORT).filter(key => {
-                    const city = CITIES_TRANSPORT[key];
-                    return city.name.toLowerCase().includes(query) ||
-                        city.country.toLowerCase().includes(query);
-                });
+                // Use global CityManager if available
+                if (window.app && window.app.cityMgr) {
+                    resultsContainer.innerHTML = '<div class="city-search-loading">Buscando...</div>';
+                    resultsContainer.style.display = 'block';
 
-                if (matches.length > 0) {
-                    resultsContainer.innerHTML = matches.map(key => {
+                    const cities = await window.app.cityMgr.searchCities(query);
+
+                    // Also include local hardcoded matches for "Expert" badge
+                    const localMatches = Object.keys(CITIES_TRANSPORT).filter(key => {
                         const city = CITIES_TRANSPORT[key];
-                        const isSelected = this.selectedCities.includes(key);
-                        return `
-                            <div class="city-result ${isSelected ? 'selected' : ''}" data-city="${key}">
-                                <span class="city-name">${city.name}</span>
-                                <span class="city-country">${city.country}</span>
-                                ${isSelected ? '<span class="check">✓</span>' : ''}
-                            </div>
-                        `;
-                    }).join('');
-                    resultsContainer.style.display = 'block';
+                        return city.name.toLowerCase().includes(query.toLowerCase());
+                    }).map(key => ({ key, ...CITIES_TRANSPORT[key], isExpert: true }));
 
-                    // Add click handlers
-                    resultsContainer.querySelectorAll('.city-result').forEach(result => {
-                        result.addEventListener('click', () => {
-                            const cityKey = result.dataset.city;
-                            if (this.selectedCities.includes(cityKey)) {
-                                this.removeCity(cityKey);
-                            } else {
-                                this.addCity(cityKey);
-                            }
-                            searchInput.value = '';
-                            resultsContainer.style.display = 'none';
+                    if (cities.length > 0 || localMatches.length > 0) {
+                        // Merge lists (avoiding duplicates if possible, prioritizing expert)
+                        const combined = [];
+                        const seenNames = new Set();
+
+                        // Add expert cities first
+                        localMatches.forEach(c => {
+                            combined.push(c);
+                            seenNames.add(c.name.toLowerCase());
                         });
-                    });
-                } else {
-                    resultsContainer.innerHTML = '<div class="no-results">No se encontraron ciudades</div>';
-                    resultsContainer.style.display = 'block';
+
+                        // Add dynamic cities if not already present
+                        cities.forEach(c => {
+                            if (!seenNames.has(c.name.toLowerCase())) {
+                                combined.push(c);
+                            }
+                        });
+
+                        resultsContainer.innerHTML = combined.map((city, index) => {
+                            const isExpert = city.isExpert;
+                            // Serialize data for click handler
+                            const dataStr = encodeURIComponent(JSON.stringify(isExpert ? city.key : city));
+                            const isSelected = this.isCitySelected(isExpert ? city.key : city);
+
+                            return `
+                                <div class="city-result ${isSelected ? 'selected' : ''}" data-city-obj="${dataStr}" data-is-expert="${isExpert}">
+                                    <span class="city-name">${city.name}</span>
+                                    <span class="city-country">${city.country} ${isExpert ? '⭐' : ''}</span>
+                                    ${isSelected ? '<span class="check">✓</span>' : ''}
+                                </div>
+                            `;
+                        }).join('');
+
+                        resultsContainer.style.display = 'block';
+
+                        // Add click handlers
+                        resultsContainer.querySelectorAll('.city-result').forEach(result => {
+                            result.addEventListener('click', () => {
+                                const isExpert = result.dataset.isExpert === 'true';
+                                const data = JSON.parse(decodeURIComponent(result.dataset.cityObj));
+
+                                if (this.isCitySelected(data)) {
+                                    this.removeCity(data);
+                                } else {
+                                    this.addCity(data);
+                                }
+                                searchInput.value = '';
+                                resultsContainer.style.display = 'none';
+                            });
+                        });
+                    } else {
+                        resultsContainer.innerHTML = '<div class="no-results">No se encontraron ciudades</div>';
+                    }
                 }
+            };
+
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                const query = e.target.value.trim();
+                searchTimeout = setTimeout(() => performSearch(query), 300);
             });
 
             // Close results on click outside
@@ -103,28 +138,42 @@
             }
         }
 
-        addCity(cityKey) {
+        addCity(cityData) {
             if (this.selectedCities.length >= this.maxCities) {
                 this.showToast('Máximo ' + this.maxCities + ' ciudades permitidas', 'warning');
                 return;
             }
 
-            if (!this.selectedCities.includes(cityKey)) {
-                this.selectedCities.push(cityKey);
+            if (!this.isCitySelected(cityData)) {
+                this.selectedCities.push(cityData);
                 this.updateCityChips();
                 this.updateQuickButtons();
                 this.showTourConfig();
             }
         }
 
-        removeCity(cityKey) {
-            this.selectedCities = this.selectedCities.filter(c => c !== cityKey);
+        removeCity(cityData) {
+            const nameToRemove = typeof cityData === 'object' ? cityData.name : (CITIES_TRANSPORT[cityData]?.name || cityData);
+
+            this.selectedCities = this.selectedCities.filter(c => {
+                const cName = typeof c === 'object' ? c.name : (CITIES_TRANSPORT[c]?.name || c);
+                return cName !== nameToRemove;
+            });
+
             this.updateCityChips();
             this.updateQuickButtons();
 
             if (this.selectedCities.length === 0) {
                 this.hideTourConfig();
             }
+        }
+
+        isCitySelected(cityData) {
+            const nameToCheck = typeof cityData === 'object' ? cityData.name : (CITIES_TRANSPORT[cityData]?.name || cityData);
+            return this.selectedCities.some(c => {
+                const cName = typeof c === 'object' ? c.name : (CITIES_TRANSPORT[c]?.name || c);
+                return cName === nameToCheck;
+            });
         }
 
         updateCityChips() {
@@ -138,21 +187,25 @@
             }
 
             hint.style.display = 'none';
-            container.innerHTML = this.selectedCities.map(cityKey => {
-                const city = CITIES_TRANSPORT[cityKey];
+            container.innerHTML = this.selectedCities.map(city => {
+                const isObject = typeof city === 'object';
+                const name = isObject ? city.name : CITIES_TRANSPORT[city].name;
+                const dataStr = encodeURIComponent(JSON.stringify(city));
+
                 return `
-                    <div class="city-chip" data-city="${cityKey}">
-                        <span class="chip-name">${city.name}</span>
-                        <button class="chip-remove" data-city="${cityKey}">×</button>
+                    <div class="city-chip" data-city-obj="${dataStr}">
+                        <span class="chip-name">${name}</span>
+                        <button class="chip-remove">×</button>
                     </div>
                 `;
             }).join('<span class="chip-arrow">→</span>');
 
             // Add remove handlers
-            container.querySelectorAll('.chip-remove').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+            container.querySelectorAll('.city-chip').forEach(chip => {
+                chip.querySelector('.chip-remove').addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.removeCity(btn.dataset.city);
+                    const data = JSON.parse(decodeURIComponent(chip.dataset.cityObj));
+                    this.removeCity(data);
                 });
             });
         }
@@ -160,7 +213,7 @@
         updateQuickButtons() {
             document.querySelectorAll('.quick-city-btn').forEach(btn => {
                 const cityKey = btn.dataset.city;
-                if (this.selectedCities.includes(cityKey)) {
+                if (this.isCitySelected(cityKey)) {
                     btn.classList.add('selected');
                 } else {
                     btn.classList.remove('selected');
@@ -182,24 +235,42 @@
             }
         }
 
-        generateItinerary() {
+        async generateItinerary() {
             if (this.selectedCities.length === 0) {
                 this.showToast('Selecciona al menos una ciudad', 'error');
                 return;
             }
 
-            const days = parseInt(document.getElementById('tour-days').value);
-            const style = document.getElementById('tour-style').value;
+            const generateBtn = document.getElementById('generate-tour');
+            const originalText = generateBtn ? generateBtn.innerHTML : '';
+            if (generateBtn) {
+                generateBtn.innerHTML = '<span>⏳ Generando...</span>';
+                generateBtn.disabled = true;
+            }
 
-            // Generate using ProfessionalItineraryGenerator
-            const generator = new ProfessionalItineraryGenerator(this.selectedCities, days, style);
-            const itinerary = generator.generate();
+            try {
+                const days = parseInt(document.getElementById('tour-days').value);
+                const style = document.getElementById('tour-style').value;
 
-            // Render itinerary
-            this.renderItinerary(itinerary);
+                // Generate using ProfessionalItineraryGenerator
+                const generator = new ProfessionalItineraryGenerator(this.selectedCities, days, style);
+                const itinerary = await generator.generate();
 
-            // Scroll to itinerary section
-            document.getElementById('itinerary').scrollIntoView({ behavior: 'smooth' });
+                // Render itinerary
+                this.renderItinerary(itinerary);
+
+                // Scroll to itinerary section
+                document.getElementById('itinerary').scrollIntoView({ behavior: 'smooth' });
+                this.showToast('¡Itinerario generado con éxito!', 'success');
+            } catch (error) {
+                console.error('Error generating itinerary:', error);
+                this.showToast('Error al generar el itinerario', 'error');
+            } finally {
+                if (generateBtn) {
+                    generateBtn.innerHTML = originalText;
+                    generateBtn.disabled = false;
+                }
+            }
         }
 
         renderItinerary(itinerary) {
@@ -287,13 +358,73 @@
         }
 
         renderDay(day) {
+            // Weather Badge
+            let weatherHtml = '';
+            if (day.weather) {
+                weatherHtml = `
+                    <div class="day-weather" title="${day.weather.min}°C - ${day.weather.max}°C">
+                        <span class="weather-icon">${day.weather.icon}</span>
+                        <span class="weather-text">${Math.round(day.weather.max)}°C</span>
+                    </div>
+                `;
+            }
+
+            // JOIN: Inter-City Transfer Card
+            let transferHtml = '';
+            if (day.arrivalInfo) {
+                const t = day.arrivalInfo;
+                transferHtml = `
+                    <div class="inter-city-transfer">
+                        <div class="transfer-header">
+                            <span class="transfer-icon">${t.icon}</span>
+                            <span class="transfer-title">Transferencia a ${day.city}</span>
+                        </div>
+                        <div class="transfer-details">
+                            <div class="transfer-route">
+                                <b>${t.name}</b>
+                                <span>⏱️ ${t.duration}</span>
+                            </div>
+                            <div class="transfer-cost">
+                                <span>💰 ~${t.price}€</span>
+                            </div>
+                        </div>
+                        <div class="transfer-actions" style="margin-top: 10px;">
+                            <a href="${t.url}" target="_blank" class="transfer-btn" style="
+                                display: inline-block;
+                                background: var(--accent-cyan);
+                                color: white;
+                                padding: 6px 12px;
+                                border-radius: 6px;
+                                text-decoration: none;
+                                font-size: 0.9em;
+                                font-weight: 500;
+                            ">🎟️ Ver Tickets / Horarios</a>
+                        </div>
+                        <div class="transfer-tip">💡 ${t.tips}</div>
+                    </div>
+                `;
+            }
+
+            // City Description (Wiki)
+            let descHtml = '';
+            if (day.cityDescription) {
+                descHtml = `<div class="day-wiki-summary">ℹ️ ${day.cityDescription}</div>`;
+            }
+
             return `
                 <div class="day-card">
+                    ${transferHtml}
                     <div class="day-header">
-                        <span class="day-number">Día ${day.day}</span>
-                        <span class="day-city">${day.city}, ${day.country}</span>
-                        <span class="day-date">${day.date}</span>
+                        <div class="day-header-main">
+                            <span class="day-number">Día ${day.day}</span>
+                            <span class="day-city">${day.city}, ${day.country}</span>
+                        </div>
+                        <div class="day-header-meta">
+                            ${weatherHtml}
+                            <span class="day-date">${day.date}</span>
+                        </div>
                     </div>
+                    ${descHtml}
                     <div class="day-sections">
                         ${day.sections.map(section => this.renderSection(section)).join('')}
                     </div>
@@ -338,20 +469,20 @@
 
         renderActivity(activity) {
             const priceClass = activity.price === 0 ? 'free' : 'paid';
-            const priceText = activity.price === 0 ? 'GRATIS' : `${activity.price}€`;
+            const priceText = activity.price === 0 ? 'GRATIS' : (typeof activity.price === 'number' ? activity.price + '€' : activity.price);
 
             return `
                 <div class="activity-item">
                     <div class="activity-main">
                         <span class="activity-name">${activity.name}</span>
-                        <span class="activity-duration">⏱️ ${activity.duration} min</span>
+                        <span class="activity-duration">⏱️ ${activity.duration || 60} min</span>
                     </div>
                     <div class="activity-details">
                         <span class="activity-price ${priceClass}">${priceText}</span>
-                        ${activity.freeDay ? `<span class="free-tip">💡 Gratis: ${activity.freeDay}</span>` : ''}
                         ${activity.rating ? `<span class="activity-rating">⭐ ${activity.rating}</span>` : ''}
                     </div>
                     ${activity.tip ? `<p class="activity-tip">💡 ${activity.tip}</p>` : ''}
+                    ${activity.url ? `<a href="${activity.url}" target="_blank" class="activity-link">🎟️ Tickets / Info</a>` : ''}
                 </div>
             `;
         }
@@ -360,7 +491,7 @@
             return `
                 <div class="transport-tip">
                     <span class="transport-label">🚇 Cómo llegar:</span>
-                    <a href="${transport.url}" target="_blank" class="transport-link-inline">
+                    <a href="${transport.url || '#'}" target="_blank" class="transport-link-inline">
                         ${transport.name} (${transport.estimatedTime}, ${transport.price})
                     </a>
                 </div>
@@ -372,7 +503,7 @@
             if (!container) return;
 
             const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
+            toast.className = `toast toast - ${type} `;
             toast.textContent = message;
             container.appendChild(toast);
 

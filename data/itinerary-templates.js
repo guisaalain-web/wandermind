@@ -163,14 +163,50 @@ const CITY_EXPERIENCES = {
 
 // Professional Itinerary Generator
 class ProfessionalItineraryGenerator {
-    constructor(cities, days, style, budget) {
+    constructor(cities, days, style, budget, contentGen) {
         this.cities = cities;
         this.days = days;
         this.style = style || 'cultural';
         this.budget = budget || 'medium';
+        this.contentGen = contentGen || (window.app ? window.app.contentGen : null);
     }
 
-    generate() {
+    async generate() {
+        // Fetch smart data for all cities in parallel
+        const cityDetailsPromises = this.cities.map(async cityKey => {
+            let name = typeof cityKey === 'object' ? cityKey.name : (CITIES_TRANSPORT[cityKey]?.name || cityKey);
+            let lat, lng;
+
+            if (typeof cityKey === 'object') {
+                lat = cityKey.lat;
+                lng = cityKey.lng;
+            } else if (CITIES_TRANSPORT[cityKey]) {
+                // Hardcoded fallback coords for demo (could be improved with database)
+                const coords = {
+                    madrid: { lat: 40.41, lng: -3.70 },
+                    barcelona: { lat: 41.38, lng: 2.17 },
+                    paris: { lat: 48.85, lng: 2.35 },
+                    london: { lat: 51.50, lng: -0.12 },
+                    rome: { lat: 41.90, lng: 12.49 },
+                    berlin: { lat: 52.52, lng: 13.40 },
+                    amsterdam: { lat: 52.36, lng: 4.90 },
+                    newyork: { lat: 40.71, lng: -74.00 },
+                    tokyo: { lat: 35.67, lng: 139.65 }
+                }[cityKey] || { lat: 0, lng: 0 };
+                lat = coords.lat;
+                lng = coords.lng;
+            }
+
+            const [weather, wiki] = await Promise.all([
+                this.fetchWeather(lat, lng),
+                this.fetchWikiSummary(name)
+            ]);
+
+            return { key: cityKey, weather, wiki, lat, lng };
+        });
+
+        const citiesSmartData = await Promise.all(cityDetailsPromises);
+
         const itinerary = {
             title: this.generateTitle(),
             cities: this.cities,
@@ -178,36 +214,159 @@ class ProfessionalItineraryGenerator {
             style: ITINERARY_TEMPLATES[this.style],
             dailyPlans: [],
             totalEstimatedCost: 0,
-            transportLinks: []
+            transportLinks: [],
+            smartTips: [] // New Smart Advisor section
         };
 
-        const daysPerCity = Math.floor(this.days / this.cities.length);
+        // Determine days per city
+        const baseDays = Math.floor(this.days / this.cities.length);
+        const extraDays = this.days % this.cities.length;
+
         let dayNumber = 1;
 
-        this.cities.forEach((cityKey, cityIndex) => {
-            const cityData = CITIES_TRANSPORT[cityKey];
-            const experiences = CITY_EXPERIENCES[cityKey];
+        for (let i = 0; i < this.cities.length; i++) {
+            const cityKey = this.cities[i];
+            const smartData = citiesSmartData[i];
 
-            if (!cityData || !experiences) return;
+            // JOIN Logic: Inter-city transport
+            if (i > 0) {
+                const prevCity = citiesSmartData[i - 1];
+                const transportLink = await this.fetchInterCityTransport(prevCity, smartData);
+
+                // Insert a "Travel Segment" into daily plans or as a special header for the first day of new city
+                // We'll add it as a special transport note in the first day of the new city
+                smartData.arrivalTransport = transportLink;
+            }
+
+            // Check if it's a known city or a dynamic one
+            let cityData = CITIES_TRANSPORT[cityKey];
+            let experiences = CITY_EXPERIENCES[cityKey];
+
+            // If it's a dynamic city (passed as object or unknown key)
+            if (!cityData && typeof cityKey === 'object') {
+                cityData = {
+                    name: cityKey.name,
+                    country: cityKey.country,
+                    cityObject: cityKey // Store full object for API calls
+                };
+            } else if (!cityData) {
+                cityData = { name: cityKey, country: '' };
+            }
+
+            // Using Smart Data for description
+            if (smartData.wiki) {
+                cityData.description = smartData.wiki;
+            }
+
+            // If no curated experiences, generate them dynamically
+            if (!experiences && this.contentGen) {
+                if (cityData.cityObject) {
+                    const prevCity = this.contentGen.cityMgr.getCity();
+                    this.contentGen.cityMgr.saveCity(cityData.cityObject);
+                    try {
+                        const places = await this.contentGen.fetchRealPlaces();
+                        const transport = await this.contentGen.fetchRealTransport();
+                        experiences = this.mapDynamicToExperiences(places, transport);
+                        cityData.transport = { metro: transport.metro[0] || null, bus: transport.bus[0] || null };
+                    } catch (e) {
+                        experiences = this.generateFallbackExperiences(cityData.name);
+                    } finally {
+                        this.contentGen.cityMgr.saveCity(prevCity);
+                    }
+                } else {
+                    experiences = this.generateFallbackExperiences(cityData.name);
+                }
+            } else if (!experiences) {
+                experiences = this.generateFallbackExperiences(cityData.name);
+            }
 
             // Add transport link for this city
-            itinerary.transportLinks.push({
-                city: cityData.name,
-                transport: cityData.transport
-            });
+            if (cityData.transport) {
+                itinerary.transportLinks.push({
+                    city: cityData.name,
+                    transport: cityData.transport
+                });
+            }
 
-            for (let d = 0; d < daysPerCity; d++) {
-                const dayPlan = this.generateDayPlan(dayNumber, cityKey, cityData, experiences, d);
+            const daysForThisCity = baseDays + (i < extraDays ? 1 : 0);
+
+            for (let d = 0; d < daysForThisCity; d++) {
+                const dayPlan = this.generateDayPlan(dayNumber, cityData, experiences, d);
+
+                // Add Multi-City "Join" Info on first day of city
+                if (d === 0 && smartData.arrivalTransport) {
+                    dayPlan.arrivalInfo = smartData.arrivalTransport;
+                }
+
+                // Add Weather Info
+                if (smartData.weather) {
+                    dayPlan.weather = smartData.weather[d % smartData.weather.length]; // Cycle if days > forecast
+                }
+
+                // Add Wiki snippet to header
+                if (d === 0 && smartData.wiki) {
+                    dayPlan.cityDescription = smartData.wiki;
+                }
+
                 itinerary.dailyPlans.push(dayPlan);
                 itinerary.totalEstimatedCost += dayPlan.estimatedCost;
                 dayNumber++;
             }
+        }
+
+        // Add inter-city costs
+        citiesSmartData.forEach(c => {
+            if (c.arrivalTransport) itinerary.totalEstimatedCost += c.arrivalTransport.price;
         });
 
         return itinerary;
     }
 
-    generateDayPlan(dayNumber, cityKey, cityData, experiences, dayInCity) {
+    // Smart API: Weather (Open-Meteo)
+    async fetchWeather(lat, lng) {
+        if (!lat || !lng) return null;
+        try {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`);
+            const data = await res.json();
+            if (!data.daily) return null;
+
+            return data.daily.time.map((t, i) => ({
+                date: t,
+                max: data.daily.temperature_2m_max[i],
+                min: data.daily.temperature_2m_min[i],
+                code: data.daily.weather_code[i],
+                icon: this.getWeatherIcon(data.daily.weather_code[i])
+            }));
+        } catch (e) {
+            console.warn('Weather fetch failed', e);
+            return null;
+        }
+    }
+
+    getWeatherIcon(code) {
+        if (code === 0) return '☀️'; // Clear
+        if (code <= 3) return '⛅'; // Partly cloudy
+        if (code <= 48) return '🌫️'; // Fog
+        if (code <= 67) return '🌧️'; // Rain
+        if (code <= 77) return '❄️'; // Snow
+        if (code <= 82) return '🚿'; // Showers
+        if (code <= 99) return '⚡'; // Thunderstorm
+        return '🌤️';
+    }
+
+    // Smart API: Wikipedia
+    async fetchWikiSummary(cityName) {
+        try {
+            const res = await fetch(`https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(cityName)}`);
+            if (!res.ok) return null;
+            const data = await res.json();
+            return data.extract; // Short summary
+        } catch (e) {
+            console.warn('Wiki fetch failed', e);
+            return null;
+        }
+    }
+    generateDayPlan(dayNumber, cityData, experiences, dayInCity) {
         const template = ITINERARY_TEMPLATES[this.style].dayStructure;
 
         const dayPlan = {
@@ -216,8 +375,7 @@ class ProfessionalItineraryGenerator {
             country: cityData.country,
             date: this.getDateString(dayNumber),
             sections: [],
-            estimatedCost: 0,
-            transportTips: cityData.transport
+            estimatedCost: 0
         };
 
         // Morning
@@ -264,15 +422,96 @@ class ProfessionalItineraryGenerator {
 
         // Calculate estimated cost
         [...morningActivities, ...afternoonActivities, ...eveningActivities].forEach(act => {
-            dayPlan.estimatedCost += act.price || 0;
+            dayPlan.estimatedCost += (typeof act.price === 'number' ? act.price : 15); // Fallback price
         });
 
         return dayPlan;
     }
 
+    mapDynamicToExperiences(places, transport) {
+        // Sort places by rating/category to fill Morning/Afternoon/Evening
+        const sorted = {
+            morning: [],
+            afternoon: [],
+            evening: [],
+            food: []
+        };
+
+        places.forEach(p => {
+            const item = {
+                name: p.name,
+                type: p.category,
+                duration: p.duration,
+                price: p.price === '€€€' ? 30 : p.price === '€€' ? 15 : 0,
+                rating: p.rating,
+                tip: p.description,
+                url: p.url
+            };
+
+            if (p.category === 'food' || p.tags.includes('food')) {
+                sorted.food.push({
+                    name: p.name,
+                    where: 'Centro ciudad', // Fallback location
+                    price: p.price,
+                    url: p.url
+                });
+            } else if (p.category === 'nightlife' || p.tags.includes('evening')) {
+                sorted.evening.push(item);
+            } else if (p.category === 'museum' || p.category === 'monument' || p.category === 'culture') {
+                if (sorted.morning.length < 2) sorted.morning.push(item);
+                else sorted.afternoon.push(item);
+            } else {
+                // Nature, parks, etc
+                if (sorted.afternoon.length < 2) sorted.afternoon.push(item);
+                else sorted.morning.push(item);
+            }
+        });
+
+        // Fill gaps if not enough places
+        while (sorted.morning.length < 3) sorted.morning.push(this.getGenericActivity('morning'));
+        while (sorted.afternoon.length < 3) sorted.afternoon.push(this.getGenericActivity('afternoon'));
+        while (sorted.evening.length < 2) sorted.evening.push(this.getGenericActivity('evening'));
+        while (sorted.food.length < 3) sorted.food.push({ name: 'Restaurante Local', where: 'Centro', price: '15-25€' });
+
+        return sorted;
+    }
+
+    getGenericActivity(time) {
+        return {
+            name: `Exploración de ${time === 'morning' ? 'Mañana' : time === 'afternoon' ? 'Tarde' : 'Noche'}`,
+            type: 'walk',
+            duration: 60,
+            price: 0,
+            rating: 4.5,
+            tip: 'Paseo libre por la zona'
+        };
+    }
+
+    generateFallbackExperiences(cityName) {
+        return {
+            morning: [
+                { name: `Centro Histórico de ${cityName}`, type: 'walk', duration: 120, price: 0, rating: 4.5, tip: 'Tour a pie' },
+                { name: `Museo Principal`, type: 'museum', duration: 90, price: 15, rating: 4.4, tip: 'Arte local' }
+            ],
+            afternoon: [
+                { name: `Parque Central`, type: 'park', duration: 60, price: 0, rating: 4.6, tip: 'Relax' },
+                { name: `Zona Comercial`, type: 'shopping', duration: 90, price: 0, rating: 4.3, tip: 'Compras' }
+            ],
+            evening: [
+                { name: `Mirador / Plaza`, type: 'viewpoint', duration: 60, price: 0, rating: 4.5, tip: 'Vistas nocturnas' }
+            ],
+            food: [
+                { name: 'Plato Típico', where: 'Restaurante Centro', price: '20€' },
+                { name: 'Mercado Local', where: 'Mercado', price: '10€' }
+            ]
+        };
+    }
+
     selectActivities(pool, count, offset) {
         const selected = [];
-        for (let i = 0; i < count && i < pool.length; i++) {
+        if (!pool || pool.length === 0) return [this.getGenericActivity('day')];
+
+        for (let i = 0; i < count; i++) {
             selected.push(pool[(i + offset) % pool.length]);
         }
         return selected;
@@ -280,23 +519,25 @@ class ProfessionalItineraryGenerator {
 
     getTransportBetween(activities, cityData) {
         if (activities.length < 2) return null;
+        if (!cityData.transport || !cityData.transport.metro) return null;
 
         const metro = cityData.transport.metro;
         return {
             type: 'metro',
-            name: metro.name,
-            url: metro.url,
-            estimatedTime: '10-15 min',
-            price: metro.ticketPrice
+            name: metro.name || 'Metro',
+            url: metro.url || '#',
+            estimatedTime: '15-20 min',
+            price: metro.ticketPrice || '2€'
         };
     }
 
     generateTitle() {
         if (this.cities.length === 1) {
-            const city = CITIES_TRANSPORT[this.cities[0]];
-            return `${this.days} días en ${city ? city.name : this.cities[0]}`;
+            const name = typeof this.cities[0] === 'object' ? this.cities[0].name : (CITIES_TRANSPORT[this.cities[0]]?.name || this.cities[0]);
+            return `${this.days} días en ${name}`;
         }
-        return `Tour ${this.cities.map(c => CITIES_TRANSPORT[c]?.name || c).join(' → ')} (${this.days} días)`;
+        const names = this.cities.map(c => typeof c === 'object' ? c.name : (CITIES_TRANSPORT[c]?.name || c));
+        return `Tour ${names.join(' → ')} (${this.days} días)`;
     }
 
     getDateString(dayNumber) {

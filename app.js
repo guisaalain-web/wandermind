@@ -175,6 +175,7 @@
                 category: category,
                 tags: tags,
                 description: item.extratags?.description || item.display_name.split(',').slice(1, 3).join(','),
+                url: item.extratags?.website || item.extratags?.url || `https://www.google.com/search?q=${encodeURIComponent((item.name || '') + ' ' + (item.address?.city || ''))}`,
                 lat: parseFloat(item.lat),
                 lng: parseFloat(item.lon),
                 duration: 90, // Default duration
@@ -776,7 +777,7 @@
             const transport = this.contentGen.getTransport();
             const linesContainer = document.getElementById('transport-lines');
             if (!linesContainer) return;
-            
+
             const allLines = [...(transport.metro || []).map(l => ({ ...l, type: 'metro' })), ...(transport.bus || []).map(l => ({ ...l, type: 'bus' }))];
 
             linesContainer.innerHTML = allLines.map(line => `
@@ -791,7 +792,7 @@
                 el.classList.add('active');
                 this.showSchedule(parseInt(el.dataset.frequency));
             }));
-            
+
             const scheduleList = document.getElementById('schedule-list');
             if (scheduleList) {
                 scheduleList.innerHTML = '<p class="schedule-empty">Selecciona una línea</p>';
@@ -839,5 +840,8 @@
 
     const app = new App();
     window.app = app;
+    window.CityManager = CityManager;
+    window.ContentGenerator = ContentGenerator;
+
     document.addEventListener('DOMContentLoaded', () => app.init());
 })();
